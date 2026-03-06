@@ -12,7 +12,6 @@
     "chrome": "chrome.css"
   },
   "preferences": "https://raw.githubusercontent.com/rajb16/Zen-Tab-Groups/main/preferences.json",
-  
   "readme": "https://raw.githubusercontent.com/rajb16/Zen-Tab-Groups/main/README.md",
   "image": "https://raw.githubusercontent.com/Vertex-Mods/Advanced-Tab-Groups/main/image.png",
   "author": "rajb16",
