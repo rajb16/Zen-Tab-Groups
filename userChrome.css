@@ -1,196 +1,211 @@
-/* ==== Tab groups (Bare Bones) ==== */
-/* https://github.com/rajb16/Zen-tab-Groups */
+/* --- Animations --- */
+@keyframes brush-sweep {
+  0% { transform: rotate(0deg); }
+  20% { transform: rotate(-15deg); }
+  40% { transform: rotate(15deg); }
+  60% { transform: rotate(-15deg); }
+  80% { transform: rotate(15deg); }
+  100% { transform: rotate(0deg); }
+}
 
-tab-group:not([split-view-group]) {
-  --tab-group-stroke: light-dark(
-    color-mix(in srgb, var(--zen-primary-color) 60%, black),
-    color-mix(in srgb, var(--zen-colors-primary) 20%, var(--toolbox-textcolor))
-  );
+@keyframes loading-pulse-tab {
+  0%, 100% { opacity: 0.6; }
+  50% { opacity: 1; }
+}
 
-  @media not (-moz-pref("browser.tabs.groups.arc-style")) {
-    &[show-grain="true"] .grain {
-      display: flex;
-      position: absolute;
-      width: 100%;
-      height: 100%;
-      background-image: url(chrome://browser/content/zen-images/grain-bg.png);
-      pointer-events: none;
-      z-index: 1;
-      opacity: var(--group-grain, 0);
-      mix-blend-mode: overlay;
-      border-radius: 4px;
-    }
+/* --- Separator & Button Container --- */
+.pinned-tabs-container-separator {
+  overflow: visible !important;
+
+  /* The Line (SVG) */
+  & svg {
+    width: 100% !important;
+    height: 1px;
+    min-height: 1px !important;
+    display: block;
+    overflow: visible;
+    transition: width 0.15s ease-in-out;
+    min-width: 0;
+    margin: auto 4px !important;
+    flex-grow: 1;
   }
 
-  .tab-group-label-container {
-    height: 36px !important;
+  /* The Sort Button */
+  & #sort-button {
+    appearance: none !important;
+    opacity: 0;
+    visibility: collapse;
+    transition: opacity 0.15s, visibility 0.15s;
+    font-size: var(--zen-ai-font-size, 12px) !important;
+    font-weight: 500;
+    gap: 4px;
+    flex-shrink: 0;
+    
+    pointer-events: none;
     margin: 0 !important;
-    padding: 0 10px 0 0 !important;
-    border-radius: var(--border-radius-medium) !important;
+    padding: var(--zen-ai-btn-padding, 2px 6px) !important;
+    white-space: nowrap;
+    -moz-context-properties: fill, fill-opacity !important;
+    fill: currentColor !important;
+    color: inherit;
     display: flex !important;
-    flex-direction: row !important;
     align-items: center !important;
-    justify-content: flex-start !important;
 
-    .tab-close-button {
-      display: none !important;
+    & label {
+      display: var(--zen-ai-label-display, flex);
+      font-weight: 600;
+      line-height: 1;
+    }
+
+    & .toolbarbutton-text {
+      display: flex;
+      align-items: center;
+      line-height: 1;
+    }
+
+    & .broom-icon {
+      width: var(--zen-ai-icon-size, 13px) !important;
+      height: var(--zen-ai-icon-size, 13px) !important;
+      transition: transform 0.15s ease-in-out;
+      transform: translateY(0px);
+      fill: currentColor !important;
+      flex-shrink: 0;
+    }
+
+    & .broom-icon path {
+      fill: currentColor !important;
+    }
+
+    &.brushing .broom-icon {
+      animation: brush-sweep 0.8s ease-in-out;
+      transform-origin: 50% 50%;
+    }
+
+    #navigator-toolbox[zen-has-implicit-hover="true"] & {
+      visibility: visible;
+      opacity: 0.5;
     }
 
     &:hover {
-      background-color: var(--tab-hover-background-color) !important;
-      .tab-close-button {
-        -moz-window-dragging: no-drag !important;
-        visibility: visible !important;
-        display: flex !important;
-      }
+      opacity: 1 !important;
     }
 
-    .tab-group-icon-container {
-      margin: 0 6px 0 10px;
+    :root:not([zen-sidebar-expanded="true"]) & {
+      display: none;
     }
 
-    .tab-group-icon {
-      list-style-image: none !important;
-      display: flex !important;
-      justify-content: center !important;
-      align-items: center !important;
-      width: 16px;
-      height: 16px;
-      border-radius: 4px;
-      position: relative;
-      fill: var(--tab-group-stroke) !important;
-      background: var(--tab-group-color);
-
-      &[zen-emoji-open="true"]::before {
-        border: 1px dashed
-          light-dark(rgba(0, 0, 0, 0.5), rgba(255, 255, 255, 0.5));
-        border-radius: 6px;
-        content: "";
-        position: absolute;
-        pointer-events: none;
-      }
-
-      .group-icon {
-        display: block;
-        width: 12px;
-        height: 12px;
-        fill: white;
-        @media (-moz-pref("browser.tabs.groups.arc-style")) {
-          width: 16px;
-          height: 16px;
-        }
-      }
-
-      & label {
-        transform: translate(0, -1px);
-      }
-    }
-
-    .tab-group-label {
-      direction: ltr;
-      mask-image: linear-gradient(to left, transparent, black 1em);
-      margin-right: auto !important;
-      width: 100%;
-      height: 100% !important;
-      padding: 0 4px 0 4px !important;
-      background: transparent !important;
-      color: var(--tab-selected-textcolor) !important;
-
-      &:-moz-window-inactive {
-        color: var(--toolbox-textcolor-inactive) !important;
-      }
-
-      font-weight: 400 !important;
-      text-align: start !important;
-      display: flex;
-      flex-direction: row;
-      align-items: center;
-      gap: 5px;
+    &.hidden-button {
+      display: none !important;
     }
   }
 
-  .tab-group-container {
-    position: relative;
-    margin-inline-start: 12px !important;
+  /* --- Native Clear Button Styling --- */
+  & .zen-workspace-close-unpinned-tabs-button {
+      appearance: none !important;
+      opacity: 0;
+      visibility: collapse;
+      transition: opacity 0.15s, visibility 0.15s;
+      pointer-events: none;
+      display: flex !important;
+      align-items: center !important;
+      justify-content: center;
+      margin-left: 4px !important;
+      padding: var(--zen-ai-btn-padding, 2px 6px) !important;
+      
+      /* Hide ALL native content (text + default icon) */
+      & > * {
+         display: none !important; 
+      }
+  }
 
-    .grain,
-    &::after {
-      position: absolute;
-      left: -2px !important;
-      top: 0;
-      height: 100%;
-      width: 2px;
-      pointer-events: none !important;
+  /* Insert Custom Bin Icon */
+  & .zen-workspace-close-unpinned-tabs-button::before {
+      content: "";
+      display: block;
+      width: var(--zen-ai-icon-size, 13px);
+      height: var(--zen-ai-icon-size, 13px);
+      background-color: currentColor;
+      flex-shrink: 0;
+      -moz-context-properties: fill, fill-opacity;
+      fill: currentColor;
+      mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='3 6 5 6 21 6'%3E%3C/polyline%3E%3Cpath d='M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2'%3E%3C/path%3E%3Cline x1='10' y1='11' x2='10' y2='17'%3E%3C/line%3Cline x1='14' y1='11' x2='14' y2='17'%3E%3C/line%3E%3C/svg%3E");
+      mask-size: contain;
+      mask-repeat: no-repeat;
+      mask-position: center;
+  }
+
+  /* Insert "Clear" Label (Controlled by Prefs) */
+  & .zen-workspace-close-unpinned-tabs-button::after {
+      content: "Clear";
+      display: var(--zen-ai-label-display, flex);
+      font-size: var(--zen-ai-font-size, 12px);
+      margin-left: 4px;
+      font-weight: 600;
+      line-height: 1;
+  }
+  
+  /* Separator Hover State (Reveals Buttons) */
+  &:hover {
+    & #sort-button,
+    & .zen-workspace-close-unpinned-tabs-button {
+      visibility: visible;
+      opacity: 0.6;
+      pointer-events: auto;
+      cursor: pointer !important;
     }
 
-    &::after {
-      content: "";
-      background: var(--tab-group-color);
+    & #sort-button:hover,
+    & .zen-workspace-close-unpinned-tabs-button:hover {
+      opacity: 1 !important;
+    }
+  }
+
+  &.has-no-sortable-tabs {
+    max-height: 0 !important;
+    margin: 0 auto !important;
+    padding: 0 !important;
+    border: none !important;
+    overflow: hidden !important;
+    gap: 0 !important;
+
+    & svg,
+    & #sort-button,
+    & .zen-workspace-close-unpinned-tabs-button {
+      display: none !important;
+      width: 0 !important;
+      opacity: 0 !important;
     }
   }
 }
 
-/* Arc-like group styling */
-@media (-moz-pref("browser.tabs.groups.arc-style")) {
-  #Zen-tab-Groups-context-menu {
-    .change-group-color {
-      display: none !important;
-    }
+/* Adjust line width (Gap Size) */
+.vertical-pinned-tabs-container-separator:hover svg {
+  width: calc(100% - var(--zen-ai-separator-gap, 40px)) !important;
+}
+
+/* Tab Loading State */
+.tab-is-sorting {
+  & .tab-icon-image,
+  & .tab-label {
+    animation: loading-pulse-tab 1.5s ease-in-out infinite;
+    will-change: opacity;
   }
+}
 
-  tab-group:not([split-view-group]) {
-    .tab-group-label-container {
-      height: 30px !important;
-      margin-block-start: 5px !important;
-      &:hover {
-        background-color: transparent !important;
-      }
+.separator-path-segment {
+  stroke: light-dark(rgba(0, 0, 0, 0.2), rgba(255, 255, 255, 0.2)) !important;
+}
 
-      .tab-group-icon-container {
-        margin: 0 0 0 10px !important;
-        display: none !important;
-
-        .tab-group-icon {
-          background: none !important;
-        }
-
-        &:has(label, .group-icon) {
-          display: flex !important;
-        }
-
-        &:has(.tab-group-icon[zen-emoji-open="true"]) {
-          display: flex !important;
-        }
-
-        & .group-icon {
-          width: 14px !important;
-          height: 14px !important;
-          fill: light-dark(black, white) !important;
-        }
-      }
-
-      .tab-group-label {
-        font-weight: 600 !important;
-        padding-inline: 0 var(--space-medium) !important;
-        margin-left: 10px !important;
-
-        #tabbrowser-tabs[orient="vertical"] & {
-          #tabbrowser-tabs[expanded] & {
-            margin-inline-end: var(--space-medium);
-          }
-        }
-      }
-
-      .tab-close-button {
-        display: none !important;
-      }
-    }
-
-    .tab-group-container {
-      margin-inline-start: 5px !important;
-      &::after {
-        content: none;
-      }
-    }
+[lwt-toolbar="light"] {
+  & #sort-button {
+    color: rgba(0, 0, 0, 0.6);
+    &:hover { color: black; }
   }
+  & .separator-path-segment {
+    stroke: rgba(0, 0, 0, 0.2) !important;
+  }
+}
+
+.pinned-tabs-container-separator {
+  & toolbarseparator { display: none !important; }
 }
