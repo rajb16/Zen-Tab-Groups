@@ -10,7 +10,7 @@
   "homepage": "https://github.com/rajb16/Zen-Tab-Groups",
   "preferences": "https://raw.githubusercontent.com/rajb16/Zen-Tab-Groups/main/preferences.json",
   "style": {
-    "chrome": "userChrome.css"
+    "chrome": "chrome.css"
   },
   "readme": "https://raw.githubusercontent.com/rajb16/Zen-Tab-Groups/main/README.md",
   "image": "https://raw.githubusercontent.com/Vertex-Mods/Advanced-Tab-Groups/main/image.png",
