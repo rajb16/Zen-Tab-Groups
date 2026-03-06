@@ -1,22 +1,31 @@
 {
-    "id": "Zen-tab-Groups",
-    "name": "Zen Tab Groups",
+    "id": "advanced-tab-groups",
+    "name": "Advanced Tab Groups",
     "description": "Tab Groups for Zen Browser",
     "scripts": {
         "zen-tab-groups.uc.js": {
-            "include": ["chrome://browser/content/browser.xhtml"]
+            "include": [
+                "chrome://browser/content/browser.xhtml"
+            ]
         }
     },
-    "homepage": "https://github.com/rajb16/Zen-tab-Groups",
-    "preferences": "https://raw.githubusercontent.com/rajb16/Zen-tab-Groups/main/preferences.json",
+    "homepage": "https://github.com/Vertex-Mods/Advanced-Tab-Groups",
+    "preferences": "https://raw.githubusercontent.com/Vertex-Mods/Advanced-Tab-Groups/main/preferences.json",
     "style": {
         "chrome": "userChrome.css"
     },
-    "readme": "https://raw.githubusercontent.com/rajb16/Zen-tab-Groups/main/README.md",
-    "author": "rajb16",
-    "version": "1.14.0",
-    "tags": ["Zen Browser", "Vertical Tabs", "Tab Groups", "Tab Folders"],
-    "createdAt": "2026-03-05",
-    "updatedAt": "2026-03-05",
+    "readme": "https://raw.githubusercontent.com/Vertex-Mods/Advanced-Tab-Groups/main/README.md",
+    "image": "https://raw.githubusercontent.com/Vertex-Mods/Advanced-Tab-Groups/main/image.png",
+    "author": "Vertex",
+    "version": "3.5.0s",
+    "tags": [
+        "Zen Browser",
+        "Vertical Tabs",
+        "Tab Groups",
+        "Tab Folders",
+        "12th"
+    ],
+    "createdAt": "2025-05-25",
+    "updatedAt": "2026-02-21",
     "fork": ["zen"]
 }
