@@ -1,22 +1,22 @@
 {
-  "id": "Zen-tab-Groups",
-  "name": "Zen Tab Groups",
-  "description": "Tab Groups for Zen Browser",
-  "scripts": {
-    "zen-tab-groups.uc.js": {
-      "include": ["chrome://browser/content/browser.xhtml"]
+    "id": "Zen-tab-Groups",
+    "name": "Zen Tab Groups",
+    "description": "Tab Groups for Zen Browser",
+    "scripts": {
+        "zen-tab-groups.uc.js": {
+            "include": ["chrome://browser/content/browser.xhtml"]
+        }
+    },
+    "homepage": "https://github.com/rajb16/Zen-tab-Groups",
+    "preferences": "https://raw.githubusercontent.com/rajb16/Zen-tab-Groups/main/preferences.json",
+    "style": {
+        "chrome": "userChrome.css"
+    },
+    "readme": "https://raw.githubusercontent.com/rajb16/Zen-tab-Groups/main/README.md",
+    "author": "rajb16",
+    "version": "1.14.0",
+    "tags": ["Zen Browser", "Vertical Tabs", "Tab Groups", "Tab Folders"],
+    "createdAt": "2026-03-05",
+    "updatedAt": "2026-03-05",
+    "fork": ["zen"]
     }
-  },
-  "homepage": "https://github.com/rajb16/Zen-tab-Groups",
-  "preferences": "https://raw.githubusercontent.com/rajb16/Zen-tab-Groups/main/preferences.json",
-  "style": {
-    "chrome": "userChrome.css"
-  },
-  "readme": "https://raw.githubusercontent.com/rajb16/Zen-tab-Groups/main/README.md",
-  "author": "rajb16",
-  "version": "1.14.0",
-  "tags": ["Zen Browser", "Vertical Tabs", "Tab Groups", "Tab Folders"],
-  "createdAt": "2026-03-05",
-  "updatedAt": "2026-03-05",
-  "fork": ["zen"]
-}
