@@ -1,627 +1,640 @@
 // ==UserScript==
-// @name           Advanced Tab Groups (Bare Bones - No Collapse Logic)
-// @ignorecache
+// @name           Zen Custom Tab Groups
+// @version        1.15.0
+// @description    Fully integrated engine mapped to window.ZenGroups for AI sorting.
+// @author         rajb16
+// @include        main
+// @onlyonce
 // ==/UserScript==
 
-class AdvancedTabGroups {
-  constructor() {
-    this.init();
-  }
-
-  async init() {
-    await this.waitForDependencies();
-    this.applySavedColors();
-    this.applySavedIcons();
-    this.setupObserver();
-    this.addFolderContextMenuItems();
-    this.removeBuiltinTabGroupMenu();
-    this.processExistingGroups();
-
-    setTimeout(() => this.processExistingGroups(), 1000);
-    document.addEventListener("TabGroupCreate", this.onTabGroupCreate.bind(this));
-    this.setupWorkspaceObserver();
-    setTimeout(() => this.updateGroupVisibility(), 500);
-  }
-
-  setupObserver() {
-    const observer = new MutationObserver((mutations) => {
-      mutations.forEach((mutation) => {
-        if (mutation.type === "childList" && mutation.addedNodes.length > 0) {
-          mutation.addedNodes.forEach((node) => {
-            if (node.nodeType === Node.ELEMENT_NODE) {
-              if (
-                node.id === "tab-group-editor" ||
-                node.nodeName?.toLowerCase() === "tabgroup-meu" ||
-                node.querySelector?.("#tab-group-editor, tabgroup-meu")
-              ) {
-                this.removeBuiltinTabGroupMenu(node);
-              }
-              if (node.tagName === "tab-group" && !node.hasAttribute("split-view-group")) {
-                this.processGroup(node);
-              }
-              const childGroups = node.querySelectorAll?.("tab-group") || [];
-              childGroups.forEach((group) => {
-                if (!group.hasAttribute("split-view-group")) {
-                  this.processGroup(group);
-                }
-              });
-            }
-          });
-        }
-      });
-    });
-    observer.observe(document.body, { childList: true, subtree: true });
-  }
-
-  waitForElm(selector) {
-    return new Promise((resolve) => {
-      const el = document.querySelector(selector);
-      if (el) return resolve(el);
-      const observer = new MutationObserver(() => {
-        const el = document.querySelector(selector);
-        if (el) {
-          observer.disconnect();
-          resolve(el);
-        }
-      });
-      observer.observe(document.body, { childList: true, subtree: true });
-    });
-  }
-
-  waitForDependencies() {
-    return new Promise((resolve) => {
-      const id = setInterval(() => {
-        const deps = ["SessionStore", "gZenWorkspaces", "gZenThemePicker"];
-        let depsExist = true;
-        for (const dep of deps) {
-          if (!window.hasOwnProperty(dep)) depsExist = false;
-        }
-        if (depsExist) {
-          clearInterval(id);
-          resolve();
-        }
-      }, 50);
-    });
-  }
-
-  setupWorkspaceObserver() {
-    const originalSwitchToWorkspace = window.gZenWorkspaces.switchToWorkspace;
-    window.gZenWorkspaces.switchToWorkspace = (...args) => {
-      const result = originalSwitchToWorkspace.apply(window.gZenWorkspaces, args);
-      setTimeout(() => this.updateGroupVisibility(), 100);
-      return result;
-    };
-    const workspaceObserver = new MutationObserver(() => {
-      setTimeout(() => this.updateGroupVisibility(), 100);
-    });
-    const workspaceContainer = document.querySelector("#zen-workspaces-button");
-    if (workspaceContainer) {
-      workspaceObserver.observe(workspaceContainer, {
-        childList: true, subtree: true, attributes: true, attributeFilter: ["selected", "active"],
-      });
-    }
-  }
-
-  updateGroupVisibility() {
-    try {
-      const activeWorkspaceGroups = gZenWorkspaces?.activeWorkspaceStrip?.querySelectorAll("tab-group") || [];
-      const activeGroupIds = new Set(Array.from(activeWorkspaceGroups).map((g) => g.id));
-      this.tabGroups.forEach((group) => {
-        if (group.hasAttribute && group.hasAttribute("split-view-group")) return;
-        if (activeGroupIds.has(group.id)) {
-          group.removeAttribute("hidden");
-        } else {
-          group.setAttribute("hidden", "true");
-        }
-      });
-    } catch (error) {}
-  }
-
-  removeBuiltinTabGroupMenu(root = document) {
-    try {
-      const list = root.querySelectorAll ? root.querySelectorAll("#tab-group-editor, tabgroup-meu") : [];
-      list.forEach((el) => el.remove());
-      const byId = root.getElementById ? root.getElementById("tab-group-editor") : null;
-      if (byId) byId.remove();
-    } catch (e) {}
-  }
-
-  get tabGroups() {
-    return gBrowser.tabGroups.filter((group) => group.tagName === "tab-group");
-  }
-
-  getGroupById(groupId) {
-    return this.tabGroups.find((group) => group.id === groupId);
-  }
-
-  processExistingGroups() {
-    this.tabGroups.forEach((group) => {
-      if (!group.hasAttribute || !group.hasAttribute("split-view-group")) {
-        this.processGroup(group);
-      }
-    });
-  }
-
-  _editingGroup = null;
-  _groupEdited = null;
-
-  renameGroupKeydown(event) {
-    event.stopPropagation();
-    if (event.key === "Enter") {
-      let label = this._groupEdited;
-      let input = document.getElementById("tab-label-input");
-      let newName = input.value.trim();
-      document.documentElement.removeAttribute("zen-renaming-group");
-      input.remove();
-      if (label && newName) {
-        const group = label.closest("tab-group");
-        if (group && newName !== group.label) group.label = newName;
-      }
-      label.classList.remove("tab-group-label-editing");
-      label.style.display = "";
-      this._groupEdited = null;
-    } else if (event.key === "Escape") {
-      event.target.blur();
-    }
-  }
-
-  renameGroupStart(group, selectAll = true) {
-    if (this._groupEdited) {
-      const existingInput = document.getElementById("tab-label-input");
-      if (existingInput) existingInput.remove();
-      if (this._groupEdited) {
-        this._groupEdited.classList.remove("tab-group-label-editing");
-        this._groupEdited.style.display = "";
-      }
-      document.documentElement.removeAttribute("zen-renaming-group");
-      this._groupEdited = null;
-    }
-    const labelElement = group.querySelector(".tab-group-label");
-    if (!labelElement) return;
-    this._groupEdited = labelElement;
-    document.documentElement.setAttribute("zen-renaming-group", "true");
-    labelElement.classList.add("tab-group-label-editing");
-    labelElement.style.display = "none";
-    const input = document.createElement("input");
-    input.id = "tab-label-input";
-    input.className = "tab-group-label";
-    input.type = "text";
-    input.value = group.label || labelElement.textContent || "";
-    input.setAttribute("autocomplete", "off");
-    labelElement.after(input);
-    input.focus();
-    if (selectAll) input.select();
-    input.addEventListener("keydown", this.renameGroupKeydown.bind(this));
-    input.addEventListener("blur", this.renameGroupHalt.bind(this));
-  }
-
-  renameGroupHalt(event) {
-    if (!this._groupEdited || document.activeElement === event.target) return;
-    document.documentElement.removeAttribute("zen-renaming-group");
-    let input = document.getElementById("tab-label-input");
-    if (input) input.remove();
-    this._groupEdited.classList.remove("tab-group-label-editing");
-    this._groupEdited.style.display = "";
-    this._groupEdited = null;
-  }
-
-  processGroup(group) {
-    if (group.hasAttribute("data-close-button-added") || group.classList.contains("zen-folder") || group.hasAttribute("zen-folder") || group.hasAttribute("split-view-group")) return;
-    const labelContainer = group.querySelector(".tab-group-label-container");
-    if (!labelContainer) return;
-    if (labelContainer.querySelector(".tab-close-button")) return;
-
-    const tabContainer = group.querySelector(".tab-group-container");
-    const grain = document.createElement("div");
-    grain.className = "grain";
-    tabContainer.appendChild(grain);
-
-    const groupDomFrag = window.MozXULElement.parseXULToFragment(`
-      <div class="tab-group-icon-container">
-        <div class="tab-group-icon"><div class="grain"></div></div>
-        <image class="group-marker" role="button" keyNav="false" tooltiptext="Toggle Group"/>
-      </div>
-      <image class="tab-close-button close-icon" role="button" keyNav="false" tooltiptext="Close Group"/>
-    `);
-    
-    labelContainer.insertBefore(groupDomFrag.children[0], labelContainer.firstChild);
-    labelContainer.appendChild(groupDomFrag.children[1]);
-
-    group.querySelector('.tab-close-button').addEventListener("click", (event) => {
-      event.stopPropagation();
-      event.preventDefault();
-      try {
-        this.removeSavedColor(group.id);
-        this.removeSavedIcon(group.id);
-        gBrowser.removeTabGroup(group);
-      } catch (error) {}
-    });
-
-    group.classList.remove("tab-group-editor-mode-create");
-    this.addContextMenu(group);
-
-    if (!group.label || group.label === "" || ("defaultGroupName" in group && group.label === group.defaultGroupName)) {
-      this.renameGroupStart(group, false);
-      group.color = `${group.id}-favicon`;
-      if (typeof group._useFaviconColor === "function") group._useFaviconColor();
-    } else {
-      const currentColor = document.documentElement.style.getPropertyValue(`--tab-group-color-${group.id}`);
-      if (!currentColor && !this.savedColors[group.id] && typeof group._useFaviconColor === "function") {
-        group.color = `${group.id}-favicon`;
-        group._useFaviconColor();
-      }
-    }
-    setTimeout(() => this.updateGroupVisibility(), 50);
-  }
-
-  ensureSharedContextMenu() {
-    if (this._sharedContextMenu) return this._sharedContextMenu;
-    try {
-      const contextMenuFrag = window.MozXULElement.parseXULToFragment(`
-        <menupopup id="advanced-tab-groups-context-menu">
-          <menu class="change-group-color" label="Change Color">
-            <menupopup>
-              <menuitem class="set-group-color" label="Edit Color"/>
-              <menuitem class="use-favicon-color" label="Use Tab Icon Colors"/>
-            </menupopup>
-          </menu>
-          <menuitem class="rename-group" label="Rename"/>
-          <menuitem class="change-group-icon" label="Change Icon"/>
-          <menuseparator/>
-          <menuitem class="ungroup-tabs" label="Ungroup"/>
-          <menuitem class="convert-group-to-folder" label="Convert to Folder"/>
-        </menupopup>
-      `);
-      const contextMenu = contextMenuFrag.firstElementChild;
-      document.body.appendChild(contextMenu);
-      this._contextMenuCurrentGroup = null;
-
-      const items = {
-        ".set-group-color": "_setGroupColor",
-        ".use-favicon-color": "_useFaviconColor",
-        ".rename-group": this.renameGroupStart,
-        ".change-group-icon": this.applyGroupIcon,
-        ".ungroup-tabs": "ungroupTabs",
-        ".convert-group-to-folder": this.convertGroupToFolder
-      };
-
-      for (const [selector, action] of Object.entries(items)) {
-        const item = contextMenu.querySelector(selector);
-        if (item) {
-          item.addEventListener("command", () => {
-            const group = this._contextMenuCurrentGroup;
-            if (group && typeof action === "function") action.call(this, group);
-            else if (group) group[action]();
-          });
-        }
-      }
-
-      contextMenu.addEventListener("popuphidden", () => this._contextMenuCurrentGroup = null);
-      this._sharedContextMenu = contextMenu;
-      return this._sharedContextMenu;
-    } catch (error) { return null; }
-  }
-
-  addFolderContextMenuItems() {
-    setTimeout(() => {
-      const folderMenu = document.getElementById("zenFolderActions");
-      if (!folderMenu || folderMenu.querySelector("#convert-folder-to-group")) return;
-      const menuFragment = window.MozXULElement.parseXULToFragment(`<menuitem id="convert-folder-to-group" label="Convert Folder to Group"/>`);
-      const convertToSpaceItem = folderMenu.querySelector("#context_zenFolderToSpace");
-      if (convertToSpaceItem) convertToSpaceItem.after(menuFragment);
-      else folderMenu.appendChild(menuFragment);
-
-      folderMenu.addEventListener("command", (event) => {
-        if (event.target.id === "convert-folder-to-group") {
-          const folder = folderMenu.triggerNode?.closest("zen-folder");
-          if (folder) this.convertFolderToGroup(folder);
-        }
-      });
-    }, 1500);
-  }
-
-  updateIconColor(group, colors) {
-    const groupIcon = group.querySelector(".group-icon");
-    const shouldBeDarkMode = !gZenThemePicker.shouldBeDarkMode(typeof colors[0] === "object" ? gZenThemePicker.getMostDominantColor(colors) : colors);
-    if (groupIcon) groupIcon.style.fill = shouldBeDarkMode ? "black" : "white";
-  }
-
-  onTabGroupCreate(event) {
-    try {
-      const group = event.target?.closest ? event.target.closest("tab-group") || (event.target.tagName === "tab-group" ? event.target : null) : null;
-      if (!group || group.hasAttribute("split-view-group")) return;
-      this.removeBuiltinTabGroupMenu();
-      if (!group.hasAttribute("data-close-button-added")) this.processGroup(group);
-      
-      if (!group.label || group.label === "" || ("defaultGroupName" in group && group.label === group.defaultGroupName)) {
-        if (!this._groupEdited) this.renameGroupStart(group, false);
-        group.color = `${group.id}-favicon`;
-        if (typeof group._useFaviconColor === "function") setTimeout(() => group._useFaviconColor(), 300);
-      }
-      setTimeout(() => this.updateGroupVisibility(), 100);
-    } catch (e) {}
-  }
-
-  addContextMenu(group) {
-    if (group._contextMenuAdded) return;
-    group._contextMenuAdded = true;
-    const sharedMenu = this.ensureSharedContextMenu();
-    const labelContainer = group.querySelector(".tab-group-label-container");
-    
-    if (labelContainer) {
-      labelContainer.removeAttribute("context");
-      const existingListener = labelContainer._contextMenuListener;
-      if (existingListener) labelContainer.removeEventListener("contextmenu", existingListener);
-      const contextMenuListener = (event) => {
-        event.preventDefault();
-        event.stopPropagation();
-        this._contextMenuCurrentGroup = group;
-        sharedMenu.openPopupAtScreen(event.screenX, event.screenY, false);
-      };
-      labelContainer._contextMenuListener = contextMenuListener;
-      labelContainer.addEventListener("contextmenu", contextMenuListener);
-    }
-
-    group.removeAttribute("context");
-    group._renameGroupFromContextMenu = () => this.renameGroupStart(group);
-    group._closeGroupFromContextMenu = () => {
-      try { this.removeSavedColor(group.id); this.removeSavedIcon(group.id); gBrowser.removeTabGroup(group); } catch (error) {}
-    };
-
-    group._setGroupColor = async () => {
-      let faviconColor;
-      if (group.color.endsWith("favicon")) faviconColor = await group._useFaviconColor();
-      group.color = group.id;
-
-      if (window.gZenThemePicker) {
-        try {
-          const existingButton = document.getElementById("zenToolbarThemePicker");
-          if (existingButton) {
-            const originalUpdateMethod = window.gZenThemePicker.updateCurrentWorkspace;
-            const calculateColor = () => {
-              const dots = gZenThemePicker.panel.querySelectorAll(".zen-theme-picker-dot");
-              const colors = Array.from(dots).sort((a, b) => a.getAttribute("data-index") - b.getAttribute("data-index")).map((dot) => {
-                const color = dot.style.getPropertyValue("--zen-theme-picker-dot-color");
-                if (color === "undefined") return null;
-                const isCustom = dot.classList.contains("custom");
-                return {
-                  c: isCustom ? color : color.match(/\d+/g).map(Number),
-                  isCustom, algorithm: this.useAlgo, isPrimary: dot.classList.contains("primary"),
-                  lightness: 50, position: dot.getAttribute("data-position") && JSON.parse(dot.getAttribute("data-position")), type: dot.getAttribute("data-type"),
-                };
-              }).filter(Boolean);
-
-              let gradient = "transparent";
-              if (colors.length > 0) {
-                gradient = gZenThemePicker.getGradient(colors);
-                this.updateIconColor(group, colors);
-              } else {
-                const groupIcon = group.querySelector(".group-icon");
-                if (groupIcon) groupIcon.style.fill = "light-dark(black, white)";
-              }
-
-              document.documentElement.style.setProperty(`--tab-group-color-${group.id}`, gradient);
-              document.documentElement.style.setProperty(`--tab-group-color-${group.id}-invert`, gradient);
-              group.style.setProperty("--group-grain", gZenThemePicker.currentTexture);
-              group.setAttribute("show-grain", gZenThemePicker.currentTexture > 0);
-              return colors;
-            };
-
-            const clickToAdd = document.querySelector("#PanelUI-zen-gradient-generator-color-click-to-add");
-            window.gZenThemePicker.updateCurrentWorkspace = () => {
-              try {
-                const colors = calculateColor();
-                clickToAdd.hidden = colors && colors.length > 0;
-                const originalUpdateNoise = gZenThemePicker.updateNoise;
-                gZenThemePicker.updateNoise = () => {};
-                const fakeWindow = {
-                  document: { documentElement: { style: { setProperty: () => {} }, setAttribute: () => {}, removeAttribute: () => {} }, getElementById: document.getElementById.bind(document), querySelectorAll: document.querySelectorAll.bind(document) },
-                  gZenThemePicker,
-                  gZenWorkspaces: { getActiveWorkspace: () => ({ uuid: group.id }), workspaceElement: () => null }
-                };
-                const originalWm = Services.wm;
-                Services.wm = { getEnumerator: () => [fakeWindow] };
-                gZenThemePicker.onWorkspaceChange({ uuid: group.id }, true, { type: undefined, gradientColors: colors, opacity: gZenThemePicker.currentOpacity, texture: gZenThemePicker.currentTexture });
-                Services.wm = originalWm;
-                gZenThemePicker.updateNoise = originalUpdateNoise;
-              } catch (error) {}
-            };
-
-            existingButton.click();
-            for (const dot of gZenThemePicker.panel.querySelectorAll(".zen-theme-picker-dot")) dot.remove();
-            gZenThemePicker.dots = [];
-
-            const previousOpacity = gZenThemePicker.currentOpacity;
-            const previousTexture = gZenThemePicker.currentTexture;
-            let theme = this.savedColors[group.id];
-
-            if (faviconColor) {
-              theme = { gradientColors: [{ c: faviconColor, isCustom: false, isPrimary: true, lightness: 50, position: gZenThemePicker.calculateInitialPosition(faviconColor), type: "undefined" }], opacity: 1, texture: 0 };
-            }
-
-            if (theme?.gradientColors?.length) {
-              clickToAdd.hidden = true;
-              gZenThemePicker.recalculateDots(theme.gradientColors);
-              gZenThemePicker.currentOpacity = theme.opacity;
-              gZenThemePicker.currentTexture = theme.texture;
-            }
-
-            const panel = window.gZenThemePicker.panel;
-            const handlePanelClose = () => {
-              try {
-                this.savedColors = { ...this.savedColors, [group.id]: { gradientColors: calculateColor(), opacity: gZenThemePicker.currentOpacity, texture: gZenThemePicker.currentTexture } };
-                gZenThemePicker.updateCurrentWorkspace = originalUpdateMethod;
-                gZenThemePicker.currentOpacity = previousOpacity;
-                gZenThemePicker.currentTexture = previousTexture;
-                for (const dot of gZenThemePicker.panel.querySelectorAll(".zen-theme-picker-dot")) dot.remove();
-                gZenThemePicker.dots = [];
-                gZenThemePicker.recalculateDots(gZenWorkspaces.getActiveWorkspace().theme.gradientColors);
-                panel.removeEventListener("popuphidden", handlePanelClose);
-              } catch (error) {}
-            };
-            panel.addEventListener("popuphidden", handlePanelClose);
-          }
-        } catch (error) {}
-      }
-    };
-
-    group._useFaviconColor = async () => {
-      try {
-        const favicons = group.querySelectorAll(".tab-icon-image");
-        const colors = [];
-        for (const favicon of Array.from(favicons)) {
-          if (favicon?.src && favicon.src !== "chrome://global/skin/icons/defaultFavicon.svg") {
-            const canvas = document.createElement("canvas");
-            const ctx = canvas.getContext("2d");
-            const img = new Image();
-            img.crossOrigin = "anonymous";
-            let processedResolve;
-            const processedPromise = new Promise((r) => (processedResolve = r));
-
-            img.onload = () => {
-              try {
-                canvas.width = img.width || 16;
-                canvas.height = img.height || 16;
-                ctx.drawImage(img, 0, 0);
-                const data = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
-                let r = 0, g = 0, b = 0, count = 0;
-                for (let i = 0; i < data.length; i += 4) {
-                  if (data[i + 3] > 128 && data[i] + data[i + 1] + data[i + 2] > 30) {
-                    r += data[i]; g += data[i + 1]; b += data[i + 2]; count++;
-                  }
-                }
-                if (count > 0) colors.push([Math.round(r / count), Math.round(g / count), Math.round(b / count)]);
-                processedResolve(true);
-              } catch (error) {}
-            };
-            img.onerror = () => processedResolve(true);
-            setTimeout(() => { if (img.complete === false) processedResolve(true); }, 3000);
-            img.src = favicon.src;
-            await processedPromise;
-          }
-        }
-
-        if (colors.length > 0) {
-          group.color = `${group.id}-favicon`;
-          const total = colors.reduce((acc, c) => [acc[0]+c[0], acc[1]+c[1], acc[2]+c[2]], [0,0,0]);
-          const avgColor = [Math.round(total[0]/colors.length), Math.round(total[1]/colors.length), Math.round(total[2]/colors.length)];
-          const colorString = `rgb(${avgColor[0]}, ${avgColor[1]}, ${avgColor[2]})`;
-
-          document.documentElement.style.setProperty(`--tab-group-color-${group.id}-favicon`, colorString);
-          document.documentElement.style.setProperty(`--tab-group-color-${group.id}-favicon-invert`, colorString);
-          this.updateIconColor(group, avgColor);
-          return avgColor;
-        }
-      } catch (error) {}
-    };
-  }
-
-  convertGroupToFolder(group) {
-    try {
-      if (!window.gZenFolders || group.tabs.length === 0) return;
-      if (window.gZenFolders.createFolder(Array.from(group.tabs), { label: group.label || "New Folder", renameFolder: false, workspaceId: group.getAttribute("zen-workspace-id") || window.gZenWorkspaces?.activeWorkspace })) {
-        try { gBrowser.removeTabGroup(group); } catch (e) {}
-        this.removeSavedColor(group.id);
-        this.removeSavedIcon(group.id);
-      }
-    } catch (e) {}
-  }
-
-  convertFolderToGroup(folder) {
-    try {
-      const tabsToGroup = folder.allItemsRecursive.filter((item) => gBrowser.isTab(item) && !item.hasAttribute("zen-empty-tab"));
-      if (tabsToGroup.length === 0) {
-        if (folder?.isConnected && typeof folder.delete === "function") folder.delete();
-        return;
-      }
-      tabsToGroup.forEach((tab) => { if (tab.pinned) gBrowser.unpinTab(tab); });
-      setTimeout(() => {
-        try {
-          const newGroup = document.createXULElement("tab-group");
-          newGroup.id = `${Date.now()}-${Math.round(Math.random() * 100)}`;
-          newGroup.label = folder.label || "New Group";
-          const container = gZenWorkspaces.activeWorkspaceStrip || gBrowser.tabContainer.querySelector("tabs");
-          container.prepend(newGroup);
-          newGroup.addTabs(tabsToGroup);
-          if (folder?.isConnected && typeof folder.delete === "function") folder.delete();
-          this.processGroup(newGroup);
-        } catch (e) {}
-      }, 200);
-    } catch (e) {}
-  }
-
-  get savedColors() {
-    try { const c = SessionStore.getCustomWindowValue(window, "tabGroupColors"); return c ? JSON.parse(c) : {}; } catch (e) { return {}; }
-  }
-  set savedColors(val) { try { SessionStore.setCustomWindowValue(window, "tabGroupColors", JSON.stringify(val)); } catch (e) {} }
-
-  applySavedColors() {
-    Object.entries(this.savedColors).forEach(async ([groupId, color]) => {
-      if (typeof color === "object" && color.gradientColors) {
-        const prevOpacity = gZenThemePicker.currentOpacity;
-        gZenThemePicker.currentOpacity = color.opacity || 1;
-        const gradient = gZenThemePicker.getGradient(color.gradientColors);
-        document.documentElement.style.setProperty(`--tab-group-color-${groupId}`, gradient);
-        document.documentElement.style.setProperty(`--tab-group-color-${groupId}-invert`, gradient);
-        gZenThemePicker.currentOpacity = prevOpacity;
-        if (color.texture) {
-          const group = await this.waitForElm(`tab-group[id="${groupId}"]`);
-          if (group) { group.style.setProperty("--group-grain", color.texture); group.setAttribute("show-grain", color.texture > 0); }
-        }
-      } else if (typeof color === "string" && color.trim() !== "") {
-        document.documentElement.style.setProperty(`--tab-group-color-${groupId}`, color);
-        document.documentElement.style.setProperty(`--tab-group-color-${groupId}-invert`, color);
-      }
-    });
-  }
-
-  removeSavedColor(id) { const c = this.savedColors; delete c[id]; this.savedColors = c; }
-
-  get savedIcons() {
-    try { const i = SessionStore.getCustomWindowValue(window, "tabGroupIcons"); return i ? JSON.parse(i) : {}; } catch (e) { return {}; }
-  }
-  set savedIcons(val) { try { SessionStore.setCustomWindowValue(window, "tabGroupIcons", JSON.stringify(val)); } catch (e) {} }
-
-  async applyGroupIcon(group, iconUrl = null) {
-    const iconContainer = await this.waitForElm(`tab-group[id="${group.id}"] .tab-group-icon-container`);
-    let iconElement = iconContainer.querySelector(".tab-group-icon") || Object.assign(document.createElement("div"), { className: "tab-group-icon" });
-    if (!iconContainer.contains(iconElement)) iconContainer.appendChild(iconElement);
-    if (!iconUrl) iconUrl = await window.gZenEmojiPicker.open(iconElement, { onlySvgIcons: !Services.prefs.getBoolPref("browser.tabs.groups.allow-emojis", false) });
-    iconElement.querySelector("image")?.remove();
-    iconElement.querySelector("label")?.remove();
-
-    if (iconUrl) {
-      iconElement.appendChild(window.MozXULElement.parseXULToFragment(iconUrl.endsWith(".svg") ? `<image src="${iconUrl}" class="group-icon" alt="Group Icon"/>` : `<label>${iconUrl}</label>`).firstElementChild);
-      this.updateIconColor(group, this.savedColors[group.id]?.gradientColors || []);
-      const icons = this.savedIcons; icons[group.id] = iconUrl; this.savedIcons = icons;
-    } else {
-      const icons = this.savedIcons; delete icons[group.id]; this.savedIcons = icons;
-    }
-  }
-
-  applySavedIcons() {
-    Object.entries(this.savedIcons).forEach(([id, url]) => { const g = this.getGroupById(id); if (g && !g.hasAttribute("split-view-group")) this.applyGroupIcon(g, url); });
-  }
-  removeSavedIcon(id) { const i = this.savedIcons; delete i[id]; this.savedIcons = i; }
-}
-
 (function () {
-  if (!globalThis.advancedTabGroups) {
-    const initATG = () => { globalThis.advancedTabGroups = new AdvancedTabGroups(); };
-    document.readyState === "complete" ? initATG() : window.addEventListener("load", initATG);
+  if (window.location.href !== "chrome://browser/content/browser.xhtml") return;
 
-    const tabContextMenu = document.getElementById("tabContextMenu");
-    if (tabContextMenu) {
-      tabContextMenu.addEventListener("popupshowing", () => {
-        const foldersToHide = Array.from(gBrowser.tabContainer.querySelectorAll("zen-folder")).map((f) => f.id);
-        const activeWorkspaceGroups = gZenWorkspaces?.activeWorkspaceStrip?.querySelectorAll("tab-group") || [];
-        const activeGroupIds = new Set(Array.from(activeWorkspaceGroups).map((g) => g.id));
-        const inactiveGroupIds = gBrowser.tabGroups.filter((g) => !activeGroupIds.has(g.id) && !g.hasAttribute("split-view-group")).map((g) => g.id);
-        const itemsToHide = [...foldersToHide, ...inactiveGroupIds];
-        document.querySelectorAll("#context_moveTabToGroupPopupMenu menuitem[tab-group-id]").forEach(item => {
-          item.hidden = itemsToHide.includes(item.getAttribute("tab-group-id"));
+  // EXPOSED TO GLOBAL WINDOW FOR AI TABS INTEGRATION
+  window.ZenGroups = {
+    isMovingMultiple: false,
+
+    getValidSibling(el, direction) {
+      let sibling =
+        direction === "prev"
+          ? el.previousElementSibling
+          : el.nextElementSibling;
+      while (sibling) {
+        if (
+          sibling.classList &&
+          sibling.classList.contains("zen-custom-group-header")
+        )
+          return sibling;
+        if (
+          sibling.tagName &&
+          sibling.tagName.toLowerCase() === "tab" &&
+          !sibling.closing
+        )
+          return sibling;
+        sibling =
+          direction === "prev"
+            ? sibling.previousElementSibling
+            : sibling.nextElementSibling;
+      }
+      return null;
+    },
+
+    evaluateTabGroupState(tab) {
+      if (this.isMovingMultiple) return;
+
+      const prev = this.getValidSibling(tab, "prev");
+      const next = this.getValidSibling(tab, "next");
+
+      const getGroupOf = (el) => {
+        if (!el) return null;
+        if (el.classList && el.classList.contains("zen-custom-group-header"))
+          return el.getAttribute("group-name");
+        if (el.tagName && el.tagName.toLowerCase() === "tab")
+          return el.getAttribute("zen-group");
+        return null;
+      };
+
+      const prevGroup = getGroupOf(prev);
+      const nextGroup = getGroupOf(next);
+
+      if (prevGroup && prevGroup === nextGroup) {
+        this.addTabToGroup(
+          tab,
+          prevGroup,
+          prev.getAttribute("zen-color") || "grey",
+        );
+      } else if (prev && prev.classList.contains("zen-custom-group-header")) {
+        const headerGroup = prev.getAttribute("group-name");
+        this.addTabToGroup(
+          tab,
+          headerGroup,
+          prev.getAttribute("zen-color") || "grey",
+        );
+      } else {
+        this.removeTabFromGroup(tab);
+      }
+    },
+
+    init() {
+      this.buildContextMenu();
+      this.buildHeaderMenu();
+      this.restoreGroupsOnLoad();
+      this.setupFolderDragAndDrop();
+
+      gBrowser.tabContainer.addEventListener("TabClose", () => {
+        setTimeout(() => this.cleanupEmptyGroups(), 10);
+      });
+
+      gBrowser.tabContainer.addEventListener("TabOpen", (e) => {
+        setTimeout(() => {
+          if (this.isMovingMultiple) return;
+
+          const tab = e.target;
+          if (!tab || tab.closing) return;
+
+          const prev = this.getValidSibling(tab, "prev");
+          const next = this.getValidSibling(tab, "next");
+
+          if (prev && prev.classList.contains("zen-custom-group-header")) {
+            gBrowser.tabContainer.insertBefore(tab, prev);
+          } else if (
+            prev &&
+            next &&
+            prev.tagName.toLowerCase() === "tab" &&
+            next.tagName.toLowerCase() === "tab"
+          ) {
+            const prevGroup = prev.getAttribute("zen-group");
+            const nextGroup = next.getAttribute("zen-group");
+            if (prevGroup && prevGroup === nextGroup) {
+              this.addTabToGroup(
+                tab,
+                prevGroup,
+                prev.getAttribute("zen-color") || "grey",
+              );
+            }
+          }
+        }, 10);
+      });
+
+      gBrowser.tabContainer.addEventListener("TabMove", (e) => {
+        this.evaluateTabGroupState(e.target);
+        setTimeout(() => this.cleanupEmptyGroups(), 50);
+      });
+
+      gBrowser.tabContainer.addEventListener("dragend", (e) => {
+        if (
+          e.target &&
+          e.target.tagName &&
+          e.target.tagName.toLowerCase() === "tab"
+        ) {
+          setTimeout(() => {
+            this.evaluateTabGroupState(e.target);
+            this.cleanupEmptyGroups();
+          }, 50);
+        }
+      });
+    },
+
+    detectTabColor(tab) {
+      try {
+        const url = new URL(tab.linkedBrowser.currentURI.spec);
+        const host = url.hostname.replace("www.", "");
+
+        const domainColors = {
+          "youtube.com": "red",
+          "netflix.com": "red",
+          "pinterest.com": "red",
+          "facebook.com": "blue",
+          "twitter.com": "blue",
+          "x.com": "blue",
+          "linkedin.com": "blue",
+          "google.com": "blue",
+          "reddit.com": "orange",
+          "amazon.com": "orange",
+          "stackoverflow.com": "orange",
+          "spotify.com": "green",
+          "whatsapp.com": "green",
+          "github.com": "grey",
+          "discord.com": "purple",
+          "twitch.tv": "purple",
+          "yahoo.com": "purple",
+          "instagram.com": "pink",
+          "dribbble.com": "pink",
+          "snapchat.com": "yellow",
+          "imdb.com": "yellow",
+        };
+
+        for (let domain in domainColors) {
+          if (host.includes(domain)) return domainColors[domain];
+        }
+      } catch (e) {}
+
+      try {
+        const icon = tab.querySelector(".tab-icon-image");
+        if (icon && icon.complete && icon.naturalWidth > 0) {
+          let canvas = document.createElement("canvas");
+          canvas.width = icon.naturalWidth;
+          canvas.height = icon.naturalHeight;
+          let ctx = canvas.getContext("2d");
+          ctx.drawImage(icon, 0, 0);
+          let data = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+
+          let r = 0,
+            g = 0,
+            b = 0,
+            count = 0;
+          for (let i = 0; i < data.length; i += 4) {
+            if (data[i + 3] > 128) {
+              r += data[i];
+              g += data[i + 1];
+              b += data[i + 2];
+              count++;
+            }
+          }
+
+          if (count > 0) {
+            r = r / count;
+            g = g / count;
+            b = b / count;
+
+            const palette = {
+              blue: [113, 183, 255],
+              red: [255, 113, 113],
+              green: [113, 255, 137],
+              yellow: [255, 215, 113],
+              purple: [209, 113, 255],
+              pink: [255, 113, 209],
+              orange: [255, 180, 113],
+              grey: [170, 170, 170],
+            };
+
+            let bestColor = "grey";
+            let minDistance = Infinity;
+
+            for (let c in palette) {
+              let pc = palette[c];
+              let dist =
+                Math.pow(r - pc[0], 2) +
+                Math.pow(g - pc[1], 2) +
+                Math.pow(b - pc[2], 2);
+              if (dist < minDistance) {
+                minDistance = dist;
+                bestColor = c;
+              }
+            }
+            return bestColor;
+          }
+        }
+      } catch (e) {}
+
+      return "grey";
+    },
+
+    addTabToGroup(tab, groupName, color) {
+      tab.setAttribute("zen-group", groupName);
+      tab.setAttribute("zen-color", color);
+      tab.removeAttribute("zen-hidden");
+      if ("SessionStore" in window) {
+        SessionStore.setCustomTabValue(tab, "zen-group", groupName);
+        SessionStore.setCustomTabValue(tab, "zen-color", color);
+      }
+    },
+
+    removeTabFromGroup(tab) {
+      tab.removeAttribute("zen-group");
+      tab.removeAttribute("zen-color");
+      tab.removeAttribute("zen-hidden");
+      if ("SessionStore" in window) {
+        SessionStore.deleteCustomTabValue(tab, "zen-group");
+        SessionStore.deleteCustomTabValue(tab, "zen-color");
+      }
+    },
+
+    restoreGroupsOnLoad() {
+      setTimeout(() => {
+        gBrowser.tabs.forEach((tab) => this.checkAndRestoreTab(tab));
+      }, 500);
+
+      gBrowser.tabContainer.addEventListener("SSTabRestored", (e) => {
+        this.checkAndRestoreTab(e.target);
+      });
+    },
+
+    checkAndRestoreTab(tab) {
+      if ("SessionStore" in window) {
+        const group = SessionStore.getCustomTabValue(tab, "zen-group");
+        const color = SessionStore.getCustomTabValue(tab, "zen-color");
+        if (group) {
+          tab.setAttribute("zen-group", group);
+          tab.setAttribute("zen-color", color || "grey");
+          tab.removeAttribute("zen-hidden");
+          this.createGroupHeader(group, tab, color);
+        }
+      }
+    },
+
+    setupFolderDragAndDrop() {
+      gBrowser.tabContainer.addEventListener(
+        "dragover",
+        (e) => {
+          if (e.dataTransfer.types.includes("application/zen-folder")) {
+            e.preventDefault();
+            e.stopPropagation();
+            e.dataTransfer.dropEffect = "move";
+          }
+        },
+        true,
+      );
+
+      gBrowser.tabContainer.addEventListener(
+        "drop",
+        (e) => {
+          const groupName = e.dataTransfer.getData("application/zen-folder");
+          if (!groupName) return;
+
+          e.preventDefault();
+          e.stopPropagation();
+
+          const dropTarget = e.target.closest("tab, .zen-custom-group-header");
+          if (!dropTarget) return;
+
+          const tabsToMove = Array.from(
+            gBrowser.tabContainer.querySelectorAll(
+              `tab[zen-group="${groupName}"]`,
+            ),
+          );
+          const headerToMove = document.querySelector(
+            `.zen-custom-group-header[group-name="${groupName}"]`,
+          );
+
+          if (dropTarget === headerToMove || tabsToMove.includes(dropTarget))
+            return;
+
+          let dropIndex = gBrowser.tabs.length;
+          if (dropTarget.tagName.toLowerCase() === "tab") {
+            dropIndex = dropTarget._tPos;
+          } else if (dropTarget.classList.contains("zen-custom-group-header")) {
+            const targetGroupName = dropTarget.getAttribute("group-name");
+            const firstTargetTab = gBrowser.tabContainer.querySelector(
+              `tab[zen-group="${targetGroupName}"]`,
+            );
+            if (firstTargetTab) dropIndex = firstTargetTab._tPos;
+          }
+
+          this.isMovingMultiple = true;
+
+          let currentIndex = dropIndex;
+          tabsToMove.forEach((tab) => {
+            gBrowser.moveTabTo(tab, currentIndex);
+            currentIndex++;
+          });
+
+          gBrowser.tabContainer.insertBefore(headerToMove, tabsToMove[0]);
+
+          setTimeout(() => {
+            this.isMovingMultiple = false;
+          }, 100);
+        },
+        true,
+      );
+    },
+
+    cleanupEmptyGroups() {
+      const headers = document.querySelectorAll(".zen-custom-group-header");
+      headers.forEach((header) => {
+        const groupName = header.getAttribute("group-name");
+        const tabsInGroup = Array.from(
+          gBrowser.tabContainer.querySelectorAll(
+            `tab[zen-group="${groupName}"]`,
+          ),
+        ).filter((tab) => !tab.closing);
+
+        if (tabsInGroup.length === 0) {
+          header.remove();
+        }
+      });
+    },
+
+    buildHeaderMenu() {
+      if (document.getElementById("zen-group-header-menu")) return;
+
+      const popupSet = document.getElementById("mainPopupSet");
+      if (!popupSet) return;
+
+      const popup = document.createXULElement("menupopup");
+      popup.id = "zen-group-header-menu";
+
+      const colors = [
+        "Grey",
+        "Blue",
+        "Red",
+        "Green",
+        "Yellow",
+        "Purple",
+        "Pink",
+        "Orange",
+      ];
+
+      colors.forEach((color) => {
+        const item = document.createXULElement("menuitem");
+        item.setAttribute("label", color);
+
+        item.addEventListener("command", (e) => {
+          const colorLower = color.toLowerCase();
+          const activePopup = document.getElementById("zen-group-header-menu");
+          const header = activePopup.triggerNode;
+
+          if (header && header.classList.contains("zen-custom-group-header")) {
+            const groupName = header.getAttribute("group-name");
+            header.setAttribute("zen-color", colorLower);
+
+            const tabs = gBrowser.tabContainer.querySelectorAll(
+              `tab[zen-group="${groupName}"]`,
+            );
+            tabs.forEach((tab) =>
+              this.addTabToGroup(tab, groupName, colorLower),
+            );
+          }
+        });
+        popup.appendChild(item);
+      });
+
+      popup.appendChild(document.createXULElement("menuseparator"));
+
+      const renameItem = document.createXULElement("menuitem");
+      renameItem.setAttribute("label", "Rename Group");
+      renameItem.addEventListener("command", () => {
+        const activePopup = document.getElementById("zen-group-header-menu");
+        const header = activePopup.triggerNode;
+        if (header) {
+          const oldGroupName = header.getAttribute("group-name");
+          const newGroupName = prompt(
+            "Enter a new name for this Tab Group:",
+            oldGroupName,
+          );
+
+          if (
+            newGroupName &&
+            newGroupName.trim() !== "" &&
+            newGroupName !== oldGroupName
+          ) {
+            header.setAttribute("group-name", newGroupName);
+            const label = header.querySelector(".zen-custom-group-label");
+            if (label) label.setAttribute("value", newGroupName);
+
+            const tabs = gBrowser.tabContainer.querySelectorAll(
+              `tab[zen-group="${oldGroupName}"]`,
+            );
+            tabs.forEach((tab) => {
+              tab.setAttribute("zen-group", newGroupName);
+              if ("SessionStore" in window) {
+                SessionStore.setCustomTabValue(tab, "zen-group", newGroupName);
+              }
+            });
+          }
+        }
+      });
+      popup.appendChild(renameItem);
+
+      const ungroupItem = document.createXULElement("menuitem");
+      ungroupItem.setAttribute("label", "Ungroup All Tabs");
+      ungroupItem.addEventListener("command", () => {
+        const activePopup = document.getElementById("zen-group-header-menu");
+        const header = activePopup.triggerNode;
+        if (header) {
+          const groupName = header.getAttribute("group-name");
+          const tabs = gBrowser.tabContainer.querySelectorAll(
+            `tab[zen-group="${groupName}"]`,
+          );
+          tabs.forEach((tab) => this.removeTabFromGroup(tab));
+          this.cleanupEmptyGroups();
+        }
+      });
+      popup.appendChild(ungroupItem);
+
+      const closeItem = document.createXULElement("menuitem");
+      closeItem.setAttribute("label", "Close Group");
+      closeItem.addEventListener("command", () => {
+        const activePopup = document.getElementById("zen-group-header-menu");
+        const header = activePopup.triggerNode;
+        if (header) {
+          const groupName = header.getAttribute("group-name");
+          const tabs = Array.from(
+            gBrowser.tabContainer.querySelectorAll(
+              `tab[zen-group="${groupName}"]`,
+            ),
+          );
+          tabs.forEach((tab) => gBrowser.removeTab(tab));
+          this.cleanupEmptyGroups();
+        }
+      });
+      popup.appendChild(closeItem);
+
+      popupSet.appendChild(popup);
+    },
+
+    createGroupHeader(groupName, referenceTab, initialColor = "grey") {
+      if (
+        document.querySelector(
+          `.zen-custom-group-header[group-name="${groupName}"]`,
+        )
+      )
+        return;
+
+      const header = document.createXULElement("hbox");
+      header.className = "zen-custom-group-header";
+      header.setAttribute("group-name", groupName);
+      header.setAttribute("zen-color", initialColor);
+      header.setAttribute("context", "zen-group-header-menu");
+
+      header.setAttribute("draggable", "true");
+      header.addEventListener("dragstart", (e) => {
+        const currentName = header.getAttribute("group-name");
+        e.dataTransfer.setData("application/zen-folder", currentName);
+        e.dataTransfer.setData("text/plain", currentName);
+        e.dataTransfer.effectAllowed = "move";
+      });
+
+      const icon = document.createXULElement("div");
+      icon.className = "zen-custom-group-icon";
+      header.appendChild(icon);
+
+      const label = document.createXULElement("label");
+      label.className = "zen-custom-group-label";
+      label.setAttribute("value", groupName);
+      header.appendChild(label);
+
+      header.addEventListener("click", (e) => {
+        if (e.button === 2) return;
+
+        const isCollapsed = header.getAttribute("zen-collapsed") === "true";
+        header.setAttribute("zen-collapsed", !isCollapsed);
+
+        const currentName = header.getAttribute("group-name");
+        const tabs = gBrowser.tabContainer.querySelectorAll(
+          `tab[zen-group="${currentName}"]`,
+        );
+        tabs.forEach((tab) => {
+          if (!isCollapsed) {
+            tab.setAttribute("zen-hidden", "true");
+          } else {
+            tab.removeAttribute("zen-hidden");
+          }
         });
       });
-    }
+
+      gBrowser.tabContainer.insertBefore(header, referenceTab);
+    },
+
+    buildContextMenu() {
+      const contextMenu = document.getElementById("tabContextMenu");
+      if (!contextMenu || document.getElementById("zen-mod-custom-group"))
+        return;
+
+      const menuItem = document.createXULElement("menuitem");
+      menuItem.id = "zen-mod-custom-group";
+      menuItem.setAttribute("label", "Add to tab group");
+
+      menuItem.addEventListener("command", () => {
+        const targetTab = TabContextMenu.contextTab || gBrowser.selectedTab;
+        const tabsToGroup = targetTab.multiselected
+          ? Array.from(gBrowser.selectedTabs)
+          : [targetTab];
+
+        let groupName = "New Group";
+        try {
+          const urlString = tabsToGroup[0].linkedBrowser.currentURI.spec;
+
+          if (
+            urlString.startsWith("about:") ||
+            urlString.startsWith("chrome:") ||
+            urlString.startsWith("moz-extension:")
+          ) {
+            groupName = "System";
+          } else {
+            let host = new URL(urlString).hostname.replace(/^www\./, "");
+            let match = host.match(/([^.]+)\.[^.]+$/);
+            let name = match ? match[1] : host;
+
+            if (name) {
+              groupName = name.charAt(0).toUpperCase() + name.slice(1);
+            }
+          }
+        } catch (e) {
+          console.error("[ZenTabGroups] Error extracting domain name:", e);
+        }
+
+        const autoColor = this.detectTabColor(tabsToGroup[0]);
+        this.isMovingMultiple = true;
+
+        let insertIndex = tabsToGroup[0]._tPos;
+
+        tabsToGroup.forEach((tab) => {
+          this.removeTabFromGroup(tab);
+          gBrowser.moveTabTo(tab, insertIndex);
+          this.addTabToGroup(tab, groupName, autoColor);
+          insertIndex++;
+        });
+
+        this.createGroupHeader(groupName, tabsToGroup[0], autoColor);
+        this.cleanupEmptyGroups();
+
+        setTimeout(() => {
+          this.isMovingMultiple = false;
+        }, 100);
+      });
+
+      const removeMenuItem = document.createXULElement("menuitem");
+      removeMenuItem.id = "zen-mod-remove-group";
+      removeMenuItem.setAttribute("label", "Remove from Group");
+
+      removeMenuItem.addEventListener("command", () => {
+        const targetTab = TabContextMenu.contextTab || gBrowser.selectedTab;
+        const tabsToGroup = targetTab.multiselected
+          ? Array.from(gBrowser.selectedTabs)
+          : [targetTab];
+
+        tabsToGroup.forEach((tab) => {
+          const currentGroup = tab.getAttribute("zen-group");
+          this.removeTabFromGroup(tab);
+
+          const remainingGroupTabs = Array.from(
+            gBrowser.tabContainer.querySelectorAll(
+              `tab[zen-group="${currentGroup}"]`,
+            ),
+          );
+          if (remainingGroupTabs.length > 0) {
+            const lastTab = remainingGroupTabs[remainingGroupTabs.length - 1];
+            gBrowser.moveTabTo(tab, lastTab._tPos + 1);
+          }
+        });
+
+        this.cleanupEmptyGroups();
+      });
+
+      const insertReference = document.getElementById("context_reloadTab");
+      if (insertReference) {
+        contextMenu.insertBefore(menuItem, insertReference);
+        contextMenu.insertBefore(removeMenuItem, insertReference);
+      } else {
+        contextMenu.appendChild(menuItem);
+        contextMenu.appendChild(removeMenuItem);
+      }
+    },
+  };
+
+  if (gBrowserInit.delayedStartupFinished) {
+    window.ZenGroups.init();
+  } else {
+    let delayedListener = (subject, topic) => {
+      if (topic === "browser-delayed-startup-finished" && subject === window) {
+        Services.obs.removeObserver(delayedListener, topic);
+        window.ZenGroups.init();
+      }
+    };
+    Services.obs.addObserver(
+      delayedListener,
+      "browser-delayed-startup-finished",
+    );
   }
 })();
