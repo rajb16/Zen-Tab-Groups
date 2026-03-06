@@ -1,18 +1,18 @@
 {
-  "id": "Zen-tab-Groups",
+  "id": "zen-tab-Groups",
   "name": "Zen Tab Groups",
   "description": "Tab Groups for Zen Browser",
   "scripts": {
-    "advanced-tab-groups.uc.js": {
+    "zen-tab-groups.uc.js": {
       "include": ["chrome://browser/content/browser.xhtml"]
     }
   },
-  "homepage": "https://github.com/rajb16/Zen-tab-Groups",
-  "preferences": "https://raw.githubusercontent.com/rajb16/Zen-tab-Groups/main/preferences.json",
+  "homepage": "https://github.com/rajb16/Zen-Tab-Groups",
+  "preferences": "https://raw.githubusercontent.com/rajb16/Zen-Tab-Groups/main/preferences.json",
   "style": {
     "chrome": "userChrome.css"
   },
-  "readme": "https://raw.githubusercontent.com/rajb16/Zen-tab-Groups/main/README.md",
+  "readme": "https://raw.githubusercontent.com/rajb16/Zen-Tab-Groups/main/README.md",
   "image": "https://raw.githubusercontent.com/Vertex-Mods/Advanced-Tab-Groups/main/image.png",
   "author": "rajb16",
   "version": "1.14.0",
