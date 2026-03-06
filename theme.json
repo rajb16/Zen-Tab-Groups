@@ -13,6 +13,7 @@
     "chrome": "userChrome.css"
   },
   "readme": "https://raw.githubusercontent.com/rajb16/Zen-tab-Groups/main/README.md",
+  "image": "https://raw.githubusercontent.com/Vertex-Mods/Advanced-Tab-Groups/main/image.png",
   "author": "rajb16",
   "version": "1.14.0",
   "tags": ["Zen Browser", "Vertical Tabs", "Tab Groups", "Tab Folders"],
