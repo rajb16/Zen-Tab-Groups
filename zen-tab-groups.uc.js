@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name           Zen Custom Tab Groups
-// @version        1.14.0
+// @name           Zen Tab Groups
+// @version        1.14.1
 // @description    Fixes the invisible index swap bug using dragend listeners.
-// @author         Your Name
+// @author         Rajb16
 // @include        main
 // @onlyonce
 // ==/UserScript==
