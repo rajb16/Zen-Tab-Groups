@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name           Zen Custom Tab Groups
-// @version        1.15.0
-// @description    Fully integrated engine mapped to window.ZenGroups for AI sorting.
-// @author         rajb16
+// @version        1.14.0
+// @description    Fixes the invisible index swap bug using dragend listeners.
+// @author         Your Name
 // @include        main
 // @onlyonce
 // ==/UserScript==
@@ -10,8 +10,7 @@
 (function () {
   if (window.location.href !== "chrome://browser/content/browser.xhtml") return;
 
-  // EXPOSED TO GLOBAL WINDOW FOR AI TABS INTEGRATION
-  window.ZenGroups = {
+  const ZenGroups = {
     isMovingMultiple: false,
 
     getValidSibling(el, direction) {
@@ -39,6 +38,7 @@
       return null;
     },
 
+    // --- NEW: Master Chain Evaluation Function ---
     evaluateTabGroupState(tab) {
       if (this.isMovingMultiple) return;
 
@@ -121,6 +121,8 @@
         setTimeout(() => this.cleanupEmptyGroups(), 50);
       });
 
+      // --- FIX: The "Invisible Index Swap" Listener ---
+      // This catches tabs swapping places with headers when native indices don't change
       gBrowser.tabContainer.addEventListener("dragend", (e) => {
         if (
           e.target &&
@@ -130,7 +132,7 @@
           setTimeout(() => {
             this.evaluateTabGroupState(e.target);
             this.cleanupEmptyGroups();
-          }, 50);
+          }, 50); // Tiny delay allows the native DOM drop to finish settling
         }
       });
     },
@@ -624,12 +626,12 @@
   };
 
   if (gBrowserInit.delayedStartupFinished) {
-    window.ZenGroups.init();
+    ZenGroups.init();
   } else {
     let delayedListener = (subject, topic) => {
       if (topic === "browser-delayed-startup-finished" && subject === window) {
         Services.obs.removeObserver(delayedListener, topic);
-        window.ZenGroups.init();
+        ZenGroups.init();
       }
     };
     Services.obs.addObserver(
