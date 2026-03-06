@@ -15,7 +15,12 @@
   "readme": "https://raw.githubusercontent.com/rajb16/Zen-Tab-Groups/main/README.md",
   "author": "Rajb16",
   "version": "1.14.1",
-  "tags": ["Zen Browser", "Vertical Tabs", "Tab Groups", "Tab Folders"],
+  "tags": [
+    "Zen Browser", 
+    "Vertical Tabs", 
+    "Tab Groups", 
+    "Tab Folders"
+  ],
   "createdAt": "2026-03-05",
   "updatedAt": "2026-03-05",
   "fork": ["zen"]
