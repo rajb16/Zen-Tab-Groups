@@ -1,9 +1,9 @@
 {
   "id": "Zen-tab-Groups",
-  "name": "Advanced Tab Groups",
+  "name": "Zen Tab Groups",
   "description": "Tab Groups for Zen Browser",
   "scripts": {
-    "Zen-tab-Groups.uc.js": {
+    "advanced-tab-groups.uc.js": {
       "include": ["chrome://browser/content/browser.xhtml"]
     }
   },
@@ -14,7 +14,7 @@
   },
   "readme": "https://raw.githubusercontent.com/rajb16/Zen-tab-Groups/main/README.md",
   "author": "rajb16",
-  "version": "3.5.0s",
+  "version": "1.0.0",
   "tags": ["Zen Browser", "Vertical Tabs", "Tab Groups", "Tab Folders"],
   "createdAt": "2025-05-25",
   "updatedAt": "2026-02-21",
