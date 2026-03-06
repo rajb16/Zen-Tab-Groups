@@ -1,25 +1,26 @@
 /* ==== Tab groups (Bare Bones) ==== */
-/* https://github.com/Anoms12/Advanced-Tab-Groups */
+/* https://github.com/rajb16/Zen-tab-Groups */
 
 tab-group:not([split-view-group]) {
-    --tab-group-stroke: light-dark(
+  --tab-group-stroke: light-dark(
     color-mix(in srgb, var(--zen-primary-color) 60%, black),
-    color-mix(in srgb, var(--zen-colors-primary) 20%, var(--toolbox-textcolor)));
-  
-    @media not (-moz-pref("browser.tabs.groups.arc-style")) {
-      &[show-grain="true"] .grain {
-        display: flex;
-        position: absolute;
-        width: 100%;
-        height: 100%;
-        background-image: url(chrome://browser/content/zen-images/grain-bg.png);
-        pointer-events: none;
-        z-index: 1;
-        opacity: var(--group-grain, 0);
-        mix-blend-mode: overlay;
-        border-radius: 4px;
-      }
+    color-mix(in srgb, var(--zen-colors-primary) 20%, var(--toolbox-textcolor))
+  );
+
+  @media not (-moz-pref("browser.tabs.groups.arc-style")) {
+    &[show-grain="true"] .grain {
+      display: flex;
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      background-image: url(chrome://browser/content/zen-images/grain-bg.png);
+      pointer-events: none;
+      z-index: 1;
+      opacity: var(--group-grain, 0);
+      mix-blend-mode: overlay;
+      border-radius: 4px;
     }
+  }
 
   .tab-group-label-container {
     height: 36px !important;
@@ -60,10 +61,11 @@ tab-group:not([split-view-group]) {
       fill: var(--tab-group-stroke) !important;
       background: var(--tab-group-color);
 
-      &[zen-emoji-open='true']::before {
-        border: 1px dashed light-dark(rgba(0, 0, 0, .5), rgba(255, 255, 255, .5));
+      &[zen-emoji-open="true"]::before {
+        border: 1px dashed
+          light-dark(rgba(0, 0, 0, 0.5), rgba(255, 255, 255, 0.5));
         border-radius: 6px;
-        content: '';
+        content: "";
         position: absolute;
         pointer-events: none;
       }
@@ -111,7 +113,8 @@ tab-group:not([split-view-group]) {
     position: relative;
     margin-inline-start: 12px !important;
 
-    .grain, &::after {
+    .grain,
+    &::after {
       position: absolute;
       left: -2px !important;
       top: 0;
@@ -129,12 +132,12 @@ tab-group:not([split-view-group]) {
 
 /* Arc-like group styling */
 @media (-moz-pref("browser.tabs.groups.arc-style")) {
-  #advanced-tab-groups-context-menu {
+  #Zen-tab-Groups-context-menu {
     .change-group-color {
       display: none !important;
     }
   }
-  
+
   tab-group:not([split-view-group]) {
     .tab-group-label-container {
       height: 30px !important;
@@ -142,7 +145,7 @@ tab-group:not([split-view-group]) {
       &:hover {
         background-color: transparent !important;
       }
-      
+
       .tab-group-icon-container {
         margin: 0 0 0 10px !important;
         display: none !important;
@@ -154,11 +157,11 @@ tab-group:not([split-view-group]) {
         &:has(label, .group-icon) {
           display: flex !important;
         }
-      
-        &:has(.tab-group-icon[zen-emoji-open='true']) {
+
+        &:has(.tab-group-icon[zen-emoji-open="true"]) {
           display: flex !important;
         }
-        
+
         & .group-icon {
           width: 14px !important;
           height: 14px !important;
