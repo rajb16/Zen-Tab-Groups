@@ -488,6 +488,10 @@
       header.setAttribute("group-name", groupName);
       header.setAttribute("zen-color", initialColor);
       header.setAttribute("context", "zen-group-header-menu");
+      const workspaceId = referenceTab.getAttribute("zen-workspace-id");
+      if (workspaceId) {
+        header.setAttribute("zen-workspace-id", workspaceId);
+      }
 
       header.setAttribute("draggable", "true");
       header.addEventListener("dragstart", (e) => {
@@ -626,11 +630,13 @@
   };
 
   if (gBrowserInit.delayedStartupFinished) {
+    window.ZenCustomGroups = ZenGroups; // <-- Added
     ZenGroups.init();
   } else {
     let delayedListener = (subject, topic) => {
       if (topic === "browser-delayed-startup-finished" && subject === window) {
         Services.obs.removeObserver(delayedListener, topic);
+        window.ZenCustomGroups = ZenGroups; // <-- Added
         ZenGroups.init();
       }
     };
