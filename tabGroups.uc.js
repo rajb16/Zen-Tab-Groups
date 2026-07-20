@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name           Zen Tab Groups
-// @version        1.20.0
-// @description    Replaces numeric-index tab positioning with direct DOM sibling insertion to eliminate stale-index bugs.
+// @version        1.31.0
+// @description    Tabs whose stored zen-color drifted from their group's header (from an older session) now self-heal to match the header instead of rendering with a mismatched border color.
 // @author         Rajb16
 // @include        main
 // @onlyonce
@@ -374,16 +374,28 @@
     checkAndRestoreTab(tab) {
       if (!("SessionStore" in window)) return;
       const group = SessionStore.getCustomTabValue(tab, "zen-group");
-      const color = SessionStore.getCustomTabValue(tab, "zen-color");
+      const storedColor = SessionStore.getCustomTabValue(tab, "zen-color");
       if (!group) return;
-
-      tab.setAttribute("zen-group", group);
-      tab.setAttribute("zen-color", color || "grey");
 
       const workspaceId = tab.getAttribute("zen-workspace-id");
       let header = document.querySelector(
         this.groupHeaderSelector(group, workspaceId),
       );
+
+      // If the header already exists this session, its color is the
+      // group's single source of truth - use that instead of this tab's
+      // own stored value. Without this, a tab restored with an older/
+      // different stored zen-color (e.g. from before the group was last
+      // recolored) permanently renders with a mismatched border/glow
+      // color, since nothing else ever re-syncs it against the header.
+      const color = header
+        ? header.getAttribute("zen-color") || "grey"
+        : storedColor || "grey";
+
+      tab.setAttribute("zen-group", group);
+      tab.setAttribute("zen-color", color);
+      SessionStore.setCustomTabValue(tab, "zen-color", color);
+
       if (!header) {
         // First time this group is seen this session (e.g. browser startup):
         // start it collapsed rather than expanded.
@@ -499,6 +511,17 @@
               );
               if (toggle) toggle.remove();
             } else {
+              // Self-heal any tab whose zen-color drifted from its
+              // header (e.g. restored from an older session before the
+              // group was last recolored) - the header is always this
+              // group's source of truth.
+              const headerColor = header.getAttribute("zen-color") || "grey";
+              tabsInGroup.forEach((tab) => {
+                if (tab.getAttribute("zen-color") !== headerColor) {
+                  this.addTabToGroup(tab, groupName, headerColor);
+                }
+              });
+
               this.updateGroupOverflow(header, tabsInGroup);
             }
           } catch (e) {
