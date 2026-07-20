@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name           Zen Tab Groups
-// @version        1.16.2
-// @description    Adds a "Show N more" cap for large groups; fixes color menu and grouping-into-existing-group bugs.
+// @version        1.17.0
+// @description    Self-heals groups whose tabs got scattered by older versions of this mod's positioning bugs.
 // @author         Rajb16
 // @include        main
 // @onlyonce
@@ -285,6 +285,33 @@
       gBrowser.moveTabTo(tab, insertIndex);
     },
 
+    // Self-heal a group whose tabs aren't all physically contiguous - e.g.
+    // tabs stranded elsewhere by an older version of this mod's positioning
+    // bugs, before insertTabAtGroupEnd existed. Any tab whose immediate
+    // (same-workspace) predecessor isn't its own header or another tab of
+    // the same group gets moved back to sit at the group's current end.
+    reconcileGroupOrder(groupName, workspaceId) {
+      const tabs = Array.from(
+        gBrowser.tabContainer.querySelectorAll(
+          this.groupTabSelector(groupName, workspaceId),
+        ),
+      ).filter((tab) => !tab.closing);
+
+      for (let i = 1; i < tabs.length; i++) {
+        const tab = tabs[i];
+        const prev = this.getValidSibling(tab, "prev", workspaceId);
+        const prevGroup = !prev
+          ? null
+          : prev.classList?.contains("zen-custom-group-header")
+            ? prev.getAttribute("group-name")
+            : prev.getAttribute("zen-group");
+
+        if (prevGroup !== groupName) {
+          this.insertTabAtGroupEnd(tab, groupName, workspaceId);
+        }
+      }
+    },
+
     addTabToGroup(tab, groupName, color) {
       tab.setAttribute("zen-group", groupName);
       tab.setAttribute("zen-color", color);
@@ -412,26 +439,35 @@
     },
 
     cleanupEmptyGroups() {
-      const headers = document.querySelectorAll(".zen-custom-group-header");
-      headers.forEach((header) => {
-        const groupName = header.getAttribute("group-name");
-        const workspaceId = header.getAttribute("zen-workspace-id");
-        const tabsInGroup = Array.from(
-          gBrowser.tabContainer.querySelectorAll(
-            this.groupTabSelector(groupName, workspaceId),
-          ),
-        ).filter((tab) => !tab.closing);
+      const wasMoving = this.isMovingMultiple;
+      this.isMovingMultiple = true;
+      try {
+        const headers = document.querySelectorAll(".zen-custom-group-header");
+        headers.forEach((header) => {
+          const groupName = header.getAttribute("group-name");
+          const workspaceId = header.getAttribute("zen-workspace-id");
 
-        if (tabsInGroup.length === 0) {
-          header.remove();
-          const toggle = document.querySelector(
-            this.overflowToggleSelector(groupName, workspaceId),
-          );
-          if (toggle) toggle.remove();
-        } else {
-          this.updateGroupOverflow(header, tabsInGroup);
-        }
-      });
+          this.reconcileGroupOrder(groupName, workspaceId);
+
+          const tabsInGroup = Array.from(
+            gBrowser.tabContainer.querySelectorAll(
+              this.groupTabSelector(groupName, workspaceId),
+            ),
+          ).filter((tab) => !tab.closing);
+
+          if (tabsInGroup.length === 0) {
+            header.remove();
+            const toggle = document.querySelector(
+              this.overflowToggleSelector(groupName, workspaceId),
+            );
+            if (toggle) toggle.remove();
+          } else {
+            this.updateGroupOverflow(header, tabsInGroup);
+          }
+        });
+      } finally {
+        this.isMovingMultiple = wasMoving;
+      }
     },
 
     // Caps how many of a group's tabs are actually shown, hiding the rest
