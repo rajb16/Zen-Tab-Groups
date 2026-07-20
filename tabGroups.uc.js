@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name           Zen Tab Groups
-// @version        1.17.0
-// @description    Self-heals groups whose tabs got scattered by older versions of this mod's positioning bugs.
+// @version        1.18.0
+// @description    Adds a real preference for the group tab cap; fixes LICENSE attribution.
 // @author         Rajb16
 // @include        main
 // @onlyonce
@@ -10,6 +10,22 @@
 (function () {
   if (window.location.href !== "chrome://browser/content/browser.xhtml") return;
 
+  const PREFS = {
+    MAX_VISIBLE_TABS: "extensions.zen-tab-groups.max_visible_tabs",
+  };
+
+  const getPref = (prefName, type, fallback) => {
+    try {
+      const branch = Services.prefs.getBranch("");
+      if (branch.prefHasUserValue(prefName)) {
+        if (type === "int") return branch.getIntPref(prefName);
+        if (type === "string") return branch.getStringPref(prefName);
+        if (type === "bool") return branch.getBoolPref(prefName);
+      }
+    } catch (e) {}
+    return fallback;
+  };
+
   const ZenGroups = {
     isMovingMultiple: false,
 
@@ -17,8 +33,11 @@
     // rendering every tab, so a huge group doesn't push everything else out
     // of view. Deliberately not a real nested scrollbox: tabs must stay flat
     // direct children of gBrowser.tabContainer for Firefox's own tab-switch/
-    // drag/keyboard-nav bookkeeping to keep working.
-    MAX_VISIBLE_TABS: 20,
+    // drag/keyboard-nav bookkeeping to keep working. Read live (not cached)
+    // so the preference takes effect without a restart.
+    get MAX_VISIBLE_TABS() {
+      return getPref(PREFS.MAX_VISIBLE_TABS, "int", 20);
+    },
 
     // Groups are only unique within a workspace - two different workspaces can
     // have a group with the same name, so every group query must be scoped by

@@ -2,5 +2,18 @@
   {
     "type": "separator",
     "label": "Configurations"
+  },
+  {
+    "property": "extensions.zen-tab-groups.max_visible_tabs",
+    "label": "Max Tabs Shown Per Group",
+    "type": "dropdown",
+    "value": "number",
+    "default": 20,
+    "options": [
+      { "value": 10, "label": "10 tabs" },
+      { "value": 20, "label": "20 tabs (Default)" },
+      { "value": 30, "label": "30 tabs" },
+      { "value": 50, "label": "50 tabs" }
+    ]
   }
 ]
