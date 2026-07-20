@@ -1,7 +1,7 @@
 {
   "id": "tabGroups",
   "name": "Zen Tab Groups",
-  "description": "Tab Groups for Zen Browser",
+  "description": "Tab Groups for Zen Browser - cyberpunk terminal styling (solid black cards, neon per-group glow, angular corner-cuts)",
   "scripts": {
     "tabGroups.uc.js": {
       "include": ["chrome://browser/content/browser.xhtml"]
@@ -14,9 +14,9 @@
   "preferences": "preferences.json",
   "readme": "https://raw.githubusercontent.com/rajb16/Zen-Tab-Groups/main/README.md",
   "author": "Rajb16",
-  "version": "1.21.0",
+  "version": "1.22.0",
   "tags": ["Zen Browser", "Vertical Tabs", "Tab Groups", "Tab Folders"],
   "createdAt": "2026-03-05",
-  "updatedAt": "2026-07-20T21:01:47Z",
+  "updatedAt": "2026-07-20T22:13:47Z",
   "fork": ["zen"]
 }

@@ -1,22 +1,40 @@
-/* Color Palette Variables */
-.zen-custom-group-header[zen-color="blue"], tab.tabbrowser-tab[zen-color="blue"], .zen-group-overflow-toggle[zen-color="blue"] { --group-color: #71b7ff; }
-.zen-custom-group-header[zen-color="red"], tab.tabbrowser-tab[zen-color="red"], .zen-group-overflow-toggle[zen-color="red"] { --group-color: #ff7171; }
-.zen-custom-group-header[zen-color="green"], tab.tabbrowser-tab[zen-color="green"], .zen-group-overflow-toggle[zen-color="green"] { --group-color: #71ff89; }
-.zen-custom-group-header[zen-color="yellow"], tab.tabbrowser-tab[zen-color="yellow"], .zen-group-overflow-toggle[zen-color="yellow"] { --group-color: #ffd771; }
-.zen-custom-group-header[zen-color="purple"], tab.tabbrowser-tab[zen-color="purple"], .zen-group-overflow-toggle[zen-color="purple"] { --group-color: #d171ff; }
-.zen-custom-group-header[zen-color="pink"], tab.tabbrowser-tab[zen-color="pink"], .zen-group-overflow-toggle[zen-color="pink"] { --group-color: #ff71d1; }
-.zen-custom-group-header[zen-color="orange"], tab.tabbrowser-tab[zen-color="orange"], .zen-group-overflow-toggle[zen-color="orange"] { --group-color: #ffb471; }
-.zen-custom-group-header[zen-color="grey"], tab.tabbrowser-tab[zen-color="grey"], .zen-group-overflow-toggle[zen-color="grey"] { --group-color: #aaaaaa; }
+/* ============================================================
+   Zen Tab Groups - Cyberpunk Terminal
+   Matches the Url-Sidebar mod's repaint: solid black fills (no
+   transparency), neon glow via box-shadow, angular corner-cuts
+   instead of rounded corners, monospace/uppercase header labels.
+   Each group keeps its own chosen color (now a neon variant) as its
+   identity - that doesn't change, only how it's rendered does.
+   ============================================================ */
+
+/* Color Palette Variables - neon variants of the original 8 */
+.zen-custom-group-header[zen-color="blue"], tab.tabbrowser-tab[zen-color="blue"], .zen-group-overflow-toggle[zen-color="blue"] { --group-color: #00fff2; }
+.zen-custom-group-header[zen-color="red"], tab.tabbrowser-tab[zen-color="red"], .zen-group-overflow-toggle[zen-color="red"] { --group-color: #ff003c; }
+.zen-custom-group-header[zen-color="green"], tab.tabbrowser-tab[zen-color="green"], .zen-group-overflow-toggle[zen-color="green"] { --group-color: #39ff14; }
+.zen-custom-group-header[zen-color="yellow"], tab.tabbrowser-tab[zen-color="yellow"], .zen-group-overflow-toggle[zen-color="yellow"] { --group-color: #fcee0a; }
+.zen-custom-group-header[zen-color="purple"], tab.tabbrowser-tab[zen-color="purple"], .zen-group-overflow-toggle[zen-color="purple"] { --group-color: #bc13fe; }
+.zen-custom-group-header[zen-color="pink"], tab.tabbrowser-tab[zen-color="pink"], .zen-group-overflow-toggle[zen-color="pink"] { --group-color: #ff2ec4; }
+.zen-custom-group-header[zen-color="orange"], tab.tabbrowser-tab[zen-color="orange"], .zen-group-overflow-toggle[zen-color="orange"] { --group-color: #ff8c00; }
+.zen-custom-group-header[zen-color="grey"], tab.tabbrowser-tab[zen-color="grey"], .zen-group-overflow-toggle[zen-color="grey"] { --group-color: #b0b8bf; }
+
+:root {
+  --cp-black: #0a0a0f;
+  /* Single-corner diagonal cuts (header cuts its top-left, whatever
+     closes the card cuts its bottom-right) so the whole card reads as
+     one angular terminal panel, echoing Url-Sidebar's cut-corner
+     language rather than every piece cutting all four corners. */
+  --cp-cut: 10px;
+}
 
 /*
- * Each group reads as one continuous card: header on top (rounded top
- * corners only), its tabs sharing a tinted background + connecting side
- * borders (no rounding, no radius break), and whichever element is
+ * Each group reads as one continuous card: header on top (top-left
+ * corner cut), its tabs sharing a solid black background + connecting
+ * side borders (no cut, no radius break), and whichever element is
  * actually last *in view* - a tab, the overflow toggle, or the header
- * itself if collapsed/empty - closes the card with rounded bottom
- * corners. ":has()" is used to detect the true visual boundary rather
- * than assuming DOM structure, since collapsed/capped tabs are still
- * DOM siblings, just hidden.
+ * itself if collapsed/empty - closes the card with its bottom-right
+ * corner cut. ":has()" is used to detect the true visual boundary
+ * rather than assuming DOM structure, since collapsed/capped tabs are
+ * still DOM siblings, just hidden.
  */
 
 .zen-custom-group-header {
@@ -24,26 +42,30 @@
   align-items: center !important;
   padding: 6px 12px !important;
   margin: 6px 8px 0 8px !important;
-  background-color: color-mix(in srgb, var(--group-color, #aaaaaa) 32%, black 68%) !important;
-  border: 1.5px solid var(--group-color, #aaaaaa) !important;
+  background-color: var(--cp-black) !important;
+  border: 2px solid var(--group-color, #b0b8bf) !important;
   border-bottom: none !important;
-  border-radius: 8px 8px 0 0 !important;
+  clip-path: polygon(var(--cp-cut) 0, 100% 0, 100% 100%, 0 100%, 0 var(--cp-cut)) !important;
+  box-shadow: 0 0 8px color-mix(in srgb, var(--group-color, #b0b8bf) 55%, transparent) !important;
   cursor: pointer !important;
   user-select: none !important;
-  transition: background-color 0.2s ease !important;
+  transition: box-shadow 0.2s ease !important;
 }
 
 .zen-custom-group-header:hover {
-  background-color: color-mix(in srgb, var(--group-color, #aaaaaa) 42%, black 58%) !important;
+  box-shadow: 0 0 14px color-mix(in srgb, var(--group-color, #b0b8bf) 80%, transparent) !important;
 }
 
 /* Nothing visibly follows the header (collapsed, or no visible overflow
-   toggle either) - close all four corners so it stands alone as a card. */
+   toggle either) - cut both corners so it stands alone as a card. */
 .zen-custom-group-header:not(
     :has(+ tab[zen-group]:not([zen-hidden="true"]):not([zen-overflow-hidden="true"]))
   ):not(:has(+ .zen-group-overflow-toggle:not([zen-collapsed="true"]))) {
-  border: 1.5px solid var(--group-color, #aaaaaa) !important;
-  border-radius: 8px !important;
+  border: 2px solid var(--group-color, #b0b8bf) !important;
+  clip-path: polygon(
+    var(--cp-cut) 0, 100% 0, 100% calc(100% - var(--cp-cut)),
+    calc(100% - var(--cp-cut)) 100%, 0 100%, 0 var(--cp-cut)
+  ) !important;
   margin-bottom: 6px !important;
 }
 
@@ -53,15 +75,20 @@
   width: 16px !important;
   height: 16px !important;
   margin-right: 8px !important;
-  background-color: var(--group-color, #aaaaaa) !important;
+  background-color: var(--group-color, #b0b8bf) !important;
   mask: url("chrome://global/skin/icons/folder.svg") center/contain no-repeat !important;
   -webkit-mask: url("chrome://global/skin/icons/folder.svg") center/contain no-repeat !important;
+  filter: drop-shadow(0 0 3px color-mix(in srgb, var(--group-color, #b0b8bf) 70%, transparent)) !important;
 }
 
 /* The Colored Text Label */
 .zen-custom-group-label {
-  color: var(--group-color, #aaaaaa) !important;
+  color: var(--group-color, #b0b8bf) !important;
+  font-family: "Consolas", "Courier New", monospace !important;
   font-weight: bold !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.5px !important;
+  text-shadow: 0 0 4px color-mix(in srgb, var(--group-color, #b0b8bf) 60%, transparent) !important;
   margin: 0 !important;
 }
 
@@ -70,23 +97,23 @@
   opacity: 0.6 !important;
 }
 
-/* Tabs share the card's side borders and a faint tinted background,
+/* Tabs share the card's side borders and a solid black background,
    flush with the header's margins (no indent - reads as one box). */
 tab.tabbrowser-tab[zen-group] {
   margin: 0 8px !important;
   padding-left: 8px !important;
-  background-color: color-mix(in srgb, var(--group-color, #aaaaaa) 7%, transparent) !important;
-  border-left: 2px solid var(--group-color, #aaaaaa) !important;
-  border-right: 1px solid color-mix(in srgb, var(--group-color, #aaaaaa) 40%, transparent) !important;
+  background-color: var(--cp-black) !important;
+  border-left: 2px solid var(--group-color, #b0b8bf) !important;
+  border-right: 1px solid color-mix(in srgb, var(--group-color, #b0b8bf) 40%, transparent) !important;
 }
 
 /* Last *visible* tab in the group (no visible next tab, no visible
-   overflow toggle after it) closes the card. */
+   overflow toggle after it) closes the card - bottom-right corner cut. */
 tab.tabbrowser-tab[zen-group]:not(
     :has(+ tab[zen-group]:not([zen-hidden="true"]):not([zen-overflow-hidden="true"]))
   ):not(:has(+ .zen-group-overflow-toggle:not([zen-collapsed="true"]))) {
-  border-radius: 0 0 8px 8px !important;
-  border-bottom: 1px solid color-mix(in srgb, var(--group-color, #aaaaaa) 40%, transparent) !important;
+  clip-path: polygon(0 0, 100% 0, 100% calc(100% - var(--cp-cut)), calc(100% - var(--cp-cut)) 100%, 0 100%) !important;
+  border-bottom: 1px solid color-mix(in srgb, var(--group-color, #b0b8bf) 40%, transparent) !important;
   margin-bottom: 6px !important;
 }
 
@@ -108,22 +135,24 @@ tab.tabbrowser-tab[zen-overflow-hidden="true"] {
   justify-content: center !important;
   margin: 0 8px 6px 8px !important;
   padding: 4px 8px !important;
-  background-color: color-mix(in srgb, var(--group-color, #aaaaaa) 7%, transparent) !important;
-  border-left: 2px solid var(--group-color, #aaaaaa) !important;
-  border-right: 1px solid color-mix(in srgb, var(--group-color, #aaaaaa) 40%, transparent) !important;
-  border-bottom: 1px solid color-mix(in srgb, var(--group-color, #aaaaaa) 40%, transparent) !important;
-  border-radius: 0 0 8px 8px !important;
+  background-color: var(--cp-black) !important;
+  border-left: 2px solid var(--group-color, #b0b8bf) !important;
+  border-right: 1px solid color-mix(in srgb, var(--group-color, #b0b8bf) 40%, transparent) !important;
+  border-bottom: 1px solid color-mix(in srgb, var(--group-color, #b0b8bf) 40%, transparent) !important;
+  clip-path: polygon(0 0, 100% 0, 100% calc(100% - var(--cp-cut)), calc(100% - var(--cp-cut)) 100%, 0 100%) !important;
   cursor: pointer !important;
   user-select: none !important;
+  font-family: "Consolas", "Courier New", monospace !important;
   font-size: 0.85em !important;
-  opacity: 0.75 !important;
+  letter-spacing: 0.4px !important;
+  opacity: 0.85 !important;
   color: var(--group-color, inherit) !important;
-  transition: opacity 0.15s ease, background-color 0.15s ease !important;
+  transition: opacity 0.15s ease, box-shadow 0.15s ease !important;
 }
 
 .zen-group-overflow-toggle:hover {
   opacity: 1 !important;
-  background-color: color-mix(in srgb, var(--group-color, #aaaaaa) 14%, transparent) !important;
+  box-shadow: 0 0 8px color-mix(in srgb, var(--group-color, #b0b8bf) 55%, transparent) !important;
 }
 
 .zen-group-overflow-toggle[zen-collapsed="true"] {
