@@ -116,14 +116,31 @@ tab.tabbrowser-tab[zen-group] {
   background-color: var(--cp-black) !important;
   border-left: 2px solid var(--group-color, #b0b8bf) !important;
   border-right: 2px solid var(--group-color, #b0b8bf) !important;
-  /* Zen's base theme puts a subtle native highlight/outline on tabs
-     (part of its own default tab "card" bevel) that isn't part of the
-     border we set above - it was showing through as a pale white
-     sliver on top of our border-right specifically (confirmed live:
-     visible identically on both a cyan and a pink group, so it wasn't
-     coming from --group-color at all). Explicitly clear it here. */
   outline: none !important;
   box-shadow: none !important;
+}
+
+/* The outline/box-shadow reset above wasn't enough - a pale sliver
+   still showed on the right edge only, identically on differently
+   colored groups, even after a full restart. That means it isn't a
+   property on the <tab> element itself being overridden by ours at
+   all, it's something on a nested element (.tab-stack) or a
+   pseudo-element Zen's base theme attaches, painted independently on
+   top. Sweep all of those too rather than guessing which one it is. */
+tab.tabbrowser-tab[zen-group] .tab-stack,
+tab.tabbrowser-tab[zen-group] .tab-content {
+  outline: none !important;
+  box-shadow: none !important;
+  border: none !important;
+}
+
+tab.tabbrowser-tab[zen-group]::after,
+tab.tabbrowser-tab[zen-group]::before,
+tab.tabbrowser-tab[zen-group] .tab-stack::after,
+tab.tabbrowser-tab[zen-group] .tab-stack::before {
+  border: none !important;
+  box-shadow: none !important;
+  background: none !important;
 }
 
 /* Last *visible* tab in the group (no visible next tab, no visible
