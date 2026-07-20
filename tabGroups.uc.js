@@ -424,7 +424,11 @@
         item.addEventListener("command", (e) => {
           const colorLower = color.toLowerCase();
           const activePopup = document.getElementById("zen-group-header-menu");
-          const header = activePopup.triggerNode;
+          // triggerNode is whatever element the right-click actually landed
+          // on (e.g. the icon or label), not necessarily the header itself.
+          const header = activePopup.triggerNode?.closest(
+            ".zen-custom-group-header",
+          );
 
           if (header && header.classList.contains("zen-custom-group-header")) {
             const groupName = header.getAttribute("group-name");
@@ -448,7 +452,11 @@
       renameItem.setAttribute("label", "Rename Group");
       renameItem.addEventListener("command", () => {
         const activePopup = document.getElementById("zen-group-header-menu");
-        const header = activePopup.triggerNode;
+        // triggerNode is whatever element the right-click actually landed
+        // on (e.g. the icon or label), not necessarily the header itself.
+        const header = activePopup.triggerNode?.closest(
+          ".zen-custom-group-header",
+        );
         if (header) {
           const oldGroupName = header.getAttribute("group-name");
           const workspaceId = header.getAttribute("zen-workspace-id");
@@ -484,7 +492,11 @@
       ungroupItem.setAttribute("label", "Ungroup All Tabs");
       ungroupItem.addEventListener("command", () => {
         const activePopup = document.getElementById("zen-group-header-menu");
-        const header = activePopup.triggerNode;
+        // triggerNode is whatever element the right-click actually landed
+        // on (e.g. the icon or label), not necessarily the header itself.
+        const header = activePopup.triggerNode?.closest(
+          ".zen-custom-group-header",
+        );
         if (header) {
           const groupName = header.getAttribute("group-name");
           const workspaceId = header.getAttribute("zen-workspace-id");
@@ -501,7 +513,11 @@
       closeItem.setAttribute("label", "Close Group");
       closeItem.addEventListener("command", () => {
         const activePopup = document.getElementById("zen-group-header-menu");
-        const header = activePopup.triggerNode;
+        // triggerNode is whatever element the right-click actually landed
+        // on (e.g. the icon or label), not necessarily the header itself.
+        const header = activePopup.triggerNode?.closest(
+          ".zen-custom-group-header",
+        );
         if (header) {
           const groupName = header.getAttribute("group-name");
           const workspaceId = header.getAttribute("zen-workspace-id");
