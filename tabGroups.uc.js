@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name           Zen Tab Groups
-// @version        1.14.1
-// @description    Fixes the invisible index swap bug using dragend listeners.
+// @version        1.15.0
+// @description    Scopes groups per-workspace and starts groups collapsed on restore.
 // @author         Rajb16
 // @include        main
 // @onlyonce
@@ -13,18 +13,40 @@
   const ZenGroups = {
     isMovingMultiple: false,
 
-    getValidSibling(el, direction) {
+    // Groups are only unique within a workspace - two different workspaces can
+    // have a group with the same name, so every group query must be scoped by
+    // zen-workspace-id or tabs/actions can leak across workspaces.
+    groupTabSelector(groupName, workspaceId) {
+      const nameSel = `tab[zen-group="${CSS.escape(groupName)}"]`;
+      return workspaceId
+        ? `${nameSel}[zen-workspace-id="${CSS.escape(workspaceId)}"]`
+        : nameSel;
+    },
+
+    groupHeaderSelector(groupName, workspaceId) {
+      const nameSel = `.zen-custom-group-header[group-name="${CSS.escape(groupName)}"]`;
+      return workspaceId
+        ? `${nameSel}[zen-workspace-id="${CSS.escape(workspaceId)}"]`
+        : nameSel;
+    },
+
+    getValidSibling(el, direction, workspaceId) {
       let sibling =
         direction === "prev"
           ? el.previousElementSibling
           : el.nextElementSibling;
       while (sibling) {
+        const matchesWorkspace =
+          !workspaceId ||
+          sibling.getAttribute?.("zen-workspace-id") === workspaceId;
         if (
+          matchesWorkspace &&
           sibling.classList &&
           sibling.classList.contains("zen-custom-group-header")
         )
           return sibling;
         if (
+          matchesWorkspace &&
           sibling.tagName &&
           sibling.tagName.toLowerCase() === "tab" &&
           !sibling.closing
@@ -42,8 +64,9 @@
     evaluateTabGroupState(tab) {
       if (this.isMovingMultiple) return;
 
-      const prev = this.getValidSibling(tab, "prev");
-      const next = this.getValidSibling(tab, "next");
+      const workspaceId = tab.getAttribute("zen-workspace-id");
+      const prev = this.getValidSibling(tab, "prev", workspaceId);
+      const next = this.getValidSibling(tab, "next", workspaceId);
 
       const getGroupOf = (el) => {
         if (!el) return null;
@@ -92,8 +115,9 @@
           const tab = e.target;
           if (!tab || tab.closing) return;
 
-          const prev = this.getValidSibling(tab, "prev");
-          const next = this.getValidSibling(tab, "next");
+          const workspaceId = tab.getAttribute("zen-workspace-id");
+          const prev = this.getValidSibling(tab, "prev", workspaceId);
+          const next = this.getValidSibling(tab, "next", workspaceId);
 
           if (prev && prev.classList.contains("zen-custom-group-header")) {
             gBrowser.tabContainer.insertBefore(tab, prev);
@@ -263,15 +287,29 @@
     },
 
     checkAndRestoreTab(tab) {
-      if ("SessionStore" in window) {
-        const group = SessionStore.getCustomTabValue(tab, "zen-group");
-        const color = SessionStore.getCustomTabValue(tab, "zen-color");
-        if (group) {
-          tab.setAttribute("zen-group", group);
-          tab.setAttribute("zen-color", color || "grey");
-          tab.removeAttribute("zen-hidden");
-          this.createGroupHeader(group, tab, color);
-        }
+      if (!("SessionStore" in window)) return;
+      const group = SessionStore.getCustomTabValue(tab, "zen-group");
+      const color = SessionStore.getCustomTabValue(tab, "zen-color");
+      if (!group) return;
+
+      tab.setAttribute("zen-group", group);
+      tab.setAttribute("zen-color", color || "grey");
+
+      const workspaceId = tab.getAttribute("zen-workspace-id");
+      let header = document.querySelector(
+        this.groupHeaderSelector(group, workspaceId),
+      );
+      if (!header) {
+        // First time this group is seen this session (e.g. browser startup):
+        // start it collapsed rather than expanded.
+        header = this.createGroupHeader(group, tab, color, true);
+      }
+
+      const isCollapsed = header?.getAttribute("zen-collapsed") === "true";
+      if (isCollapsed) {
+        tab.setAttribute("zen-hidden", "true");
+      } else {
+        tab.removeAttribute("zen-hidden");
       }
     },
 
@@ -300,13 +338,14 @@
           const dropTarget = e.target.closest("tab, .zen-custom-group-header");
           if (!dropTarget) return;
 
+          const workspaceId = dropTarget.getAttribute("zen-workspace-id");
           const tabsToMove = Array.from(
             gBrowser.tabContainer.querySelectorAll(
-              `tab[zen-group="${groupName}"]`,
+              this.groupTabSelector(groupName, workspaceId),
             ),
           );
           const headerToMove = document.querySelector(
-            `.zen-custom-group-header[group-name="${groupName}"]`,
+            this.groupHeaderSelector(groupName, workspaceId),
           );
 
           if (dropTarget === headerToMove || tabsToMove.includes(dropTarget))
@@ -318,7 +357,7 @@
           } else if (dropTarget.classList.contains("zen-custom-group-header")) {
             const targetGroupName = dropTarget.getAttribute("group-name");
             const firstTargetTab = gBrowser.tabContainer.querySelector(
-              `tab[zen-group="${targetGroupName}"]`,
+              this.groupTabSelector(targetGroupName, workspaceId),
             );
             if (firstTargetTab) dropIndex = firstTargetTab._tPos;
           }
@@ -345,9 +384,10 @@
       const headers = document.querySelectorAll(".zen-custom-group-header");
       headers.forEach((header) => {
         const groupName = header.getAttribute("group-name");
+        const workspaceId = header.getAttribute("zen-workspace-id");
         const tabsInGroup = Array.from(
           gBrowser.tabContainer.querySelectorAll(
-            `tab[zen-group="${groupName}"]`,
+            this.groupTabSelector(groupName, workspaceId),
           ),
         ).filter((tab) => !tab.closing);
 
@@ -388,10 +428,11 @@
 
           if (header && header.classList.contains("zen-custom-group-header")) {
             const groupName = header.getAttribute("group-name");
+            const workspaceId = header.getAttribute("zen-workspace-id");
             header.setAttribute("zen-color", colorLower);
 
             const tabs = gBrowser.tabContainer.querySelectorAll(
-              `tab[zen-group="${groupName}"]`,
+              this.groupTabSelector(groupName, workspaceId),
             );
             tabs.forEach((tab) =>
               this.addTabToGroup(tab, groupName, colorLower),
@@ -410,6 +451,7 @@
         const header = activePopup.triggerNode;
         if (header) {
           const oldGroupName = header.getAttribute("group-name");
+          const workspaceId = header.getAttribute("zen-workspace-id");
           const newGroupName = prompt(
             "Enter a new name for this Tab Group:",
             oldGroupName,
@@ -425,7 +467,7 @@
             if (label) label.setAttribute("value", newGroupName);
 
             const tabs = gBrowser.tabContainer.querySelectorAll(
-              `tab[zen-group="${oldGroupName}"]`,
+              this.groupTabSelector(oldGroupName, workspaceId),
             );
             tabs.forEach((tab) => {
               tab.setAttribute("zen-group", newGroupName);
@@ -445,8 +487,9 @@
         const header = activePopup.triggerNode;
         if (header) {
           const groupName = header.getAttribute("group-name");
+          const workspaceId = header.getAttribute("zen-workspace-id");
           const tabs = gBrowser.tabContainer.querySelectorAll(
-            `tab[zen-group="${groupName}"]`,
+            this.groupTabSelector(groupName, workspaceId),
           );
           tabs.forEach((tab) => this.removeTabFromGroup(tab));
           this.cleanupEmptyGroups();
@@ -461,9 +504,10 @@
         const header = activePopup.triggerNode;
         if (header) {
           const groupName = header.getAttribute("group-name");
+          const workspaceId = header.getAttribute("zen-workspace-id");
           const tabs = Array.from(
             gBrowser.tabContainer.querySelectorAll(
-              `tab[zen-group="${groupName}"]`,
+              this.groupTabSelector(groupName, workspaceId),
             ),
           );
           tabs.forEach((tab) => gBrowser.removeTab(tab));
@@ -475,20 +519,24 @@
       popupSet.appendChild(popup);
     },
 
-    createGroupHeader(groupName, referenceTab, initialColor = "grey") {
-      if (
-        document.querySelector(
-          `.zen-custom-group-header[group-name="${groupName}"]`,
-        )
-      )
-        return;
+    createGroupHeader(
+      groupName,
+      referenceTab,
+      initialColor = "grey",
+      startCollapsed = false,
+    ) {
+      const workspaceId = referenceTab.getAttribute("zen-workspace-id");
+      const existing = document.querySelector(
+        this.groupHeaderSelector(groupName, workspaceId),
+      );
+      if (existing) return existing;
 
       const header = document.createXULElement("hbox");
       header.className = "zen-custom-group-header";
       header.setAttribute("group-name", groupName);
       header.setAttribute("zen-color", initialColor);
+      header.setAttribute("zen-collapsed", startCollapsed ? "true" : "false");
       header.setAttribute("context", "zen-group-header-menu");
-      const workspaceId = referenceTab.getAttribute("zen-workspace-id");
       if (workspaceId) {
         header.setAttribute("zen-workspace-id", workspaceId);
       }
@@ -517,8 +565,9 @@
         header.setAttribute("zen-collapsed", !isCollapsed);
 
         const currentName = header.getAttribute("group-name");
+        const currentWorkspaceId = header.getAttribute("zen-workspace-id");
         const tabs = gBrowser.tabContainer.querySelectorAll(
-          `tab[zen-group="${currentName}"]`,
+          this.groupTabSelector(currentName, currentWorkspaceId),
         );
         tabs.forEach((tab) => {
           if (!isCollapsed) {
@@ -530,6 +579,7 @@
       });
 
       gBrowser.tabContainer.insertBefore(header, referenceTab);
+      return header;
     },
 
     buildContextMenu() {
@@ -602,11 +652,12 @@
 
         tabsToGroup.forEach((tab) => {
           const currentGroup = tab.getAttribute("zen-group");
+          const workspaceId = tab.getAttribute("zen-workspace-id");
           this.removeTabFromGroup(tab);
 
           const remainingGroupTabs = Array.from(
             gBrowser.tabContainer.querySelectorAll(
-              `tab[zen-group="${currentGroup}"]`,
+              this.groupTabSelector(currentGroup, workspaceId),
             ),
           );
           if (remainingGroupTabs.length > 0) {
