@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name           Zen Tab Groups
-// @version        1.19.0
-// @description    Isolates per-group cleanup errors, caps groups at 12 tabs by default, and gives each group a card-style visual container.
+// @version        1.20.0
+// @description    Replaces numeric-index tab positioning with direct DOM sibling insertion to eliminate stale-index bugs.
 // @author         Rajb16
 // @include        main
 // @onlyonce
@@ -293,20 +293,22 @@
     // group (live-requeried from the DOM), or leaves it where it is if the
     // group has no other tabs yet. Shared by manual grouping and AI sorting
     // so both always land tabs next to their actual group.
+    //
+    // Uses direct DOM sibling insertion (Node.after) rather than
+    // gBrowser.moveTabTo(tab, numericIndex). A numeric index computed from
+    // one query goes stale the instant any OTHER tab in the same batch also
+    // moves (or if the move itself isn't perfectly synchronous) - that was
+    // the root cause behind several rounds of "tabs land in the wrong spot"
+    // bugs, worse the larger the batch (e.g. AI-sorting ~50 tabs at once).
+    // Placing a tab as a sibling of a specific element is correct the
+    // instant it executes; there's no position number to go stale.
     insertTabAtGroupEnd(tab, groupName, workspaceId) {
       const currentGroupTabs = gBrowser.tabContainer.querySelectorAll(
         this.groupTabSelector(groupName, workspaceId),
       );
       const lastTab = currentGroupTabs[currentGroupTabs.length - 1];
-      const insertIndex =
-        lastTab && typeof lastTab._tPos === "number"
-          ? lastTab._tPos + 1
-          : tab._tPos;
-      // _tPos can be transiently unassigned (e.g. mid session-restore with
-      // many tabs) - skip rather than call moveTabTo with a bad index, which
-      // would throw and abort whatever loop is calling this for OTHER groups.
-      if (typeof insertIndex === "number" && !Number.isNaN(insertIndex)) {
-        gBrowser.moveTabTo(tab, insertIndex);
+      if (lastTab && lastTab !== tab) {
+        lastTab.after(tab);
       }
     },
 
@@ -434,26 +436,32 @@
           if (dropTarget === headerToMove || tabsToMove.includes(dropTarget))
             return;
 
-          let dropIndex = gBrowser.tabs.length;
+          // Insert the whole [header, tab1..tabN] block directly before this
+          // node (DOM sibling insertion, not a numeric index - see
+          // insertTabAtGroupEnd for why numeric indices go stale mid-batch).
+          let referenceNode = null;
           if (dropTarget.tagName.toLowerCase() === "tab") {
-            dropIndex = dropTarget._tPos;
+            referenceNode = dropTarget;
           } else if (dropTarget.classList.contains("zen-custom-group-header")) {
             const targetGroupName = dropTarget.getAttribute("group-name");
-            const firstTargetTab = gBrowser.tabContainer.querySelector(
+            referenceNode = gBrowser.tabContainer.querySelector(
               this.groupTabSelector(targetGroupName, workspaceId),
             );
-            if (firstTargetTab) dropIndex = firstTargetTab._tPos;
           }
 
           this.isMovingMultiple = true;
 
-          let currentIndex = dropIndex;
-          tabsToMove.forEach((tab) => {
-            gBrowser.moveTabTo(tab, currentIndex);
-            currentIndex++;
-          });
+          if (referenceNode) {
+            referenceNode.before(headerToMove);
+          } else {
+            gBrowser.tabContainer.appendChild(headerToMove);
+          }
 
-          gBrowser.tabContainer.insertBefore(headerToMove, tabsToMove[0]);
+          let anchor = headerToMove;
+          tabsToMove.forEach((tab) => {
+            anchor.after(tab);
+            anchor = tab;
+          });
 
           setTimeout(() => {
             this.isMovingMultiple = false;
@@ -912,7 +920,7 @@
           );
           if (remainingGroupTabs.length > 0) {
             const lastTab = remainingGroupTabs[remainingGroupTabs.length - 1];
-            gBrowser.moveTabTo(tab, lastTab._tPos + 1);
+            lastTab.after(tab);
           }
         });
 
