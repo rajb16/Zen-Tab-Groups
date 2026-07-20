@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name           Zen Tab Groups
-// @version        1.15.0
-// @description    Scopes groups per-workspace and starts groups collapsed on restore.
+// @version        1.16.0
+// @description    Adds a "Show N more" cap for large groups; fixes color menu and grouping-into-existing-group bugs.
 // @author         Rajb16
 // @include        main
 // @onlyonce
@@ -12,6 +12,13 @@
 
   const ZenGroups = {
     isMovingMultiple: false,
+
+    // Groups with more tabs than this show a "Show N more" toggle instead of
+    // rendering every tab, so a huge group doesn't push everything else out
+    // of view. Deliberately not a real nested scrollbox: tabs must stay flat
+    // direct children of gBrowser.tabContainer for Firefox's own tab-switch/
+    // drag/keyboard-nav bookkeeping to keep working.
+    MAX_VISIBLE_TABS: 20,
 
     // Groups are only unique within a workspace - two different workspaces can
     // have a group with the same name, so every group query must be scoped by
@@ -25,6 +32,13 @@
 
     groupHeaderSelector(groupName, workspaceId) {
       const nameSel = `.zen-custom-group-header[group-name="${CSS.escape(groupName)}"]`;
+      return workspaceId
+        ? `${nameSel}[zen-workspace-id="${CSS.escape(workspaceId)}"]`
+        : nameSel;
+    },
+
+    overflowToggleSelector(groupName, workspaceId) {
+      const nameSel = `.zen-group-overflow-toggle[group-name="${CSS.escape(groupName)}"]`;
       return workspaceId
         ? `${nameSel}[zen-workspace-id="${CSS.escape(workspaceId)}"]`
         : nameSel;
@@ -294,10 +308,12 @@
     restoreGroupsOnLoad() {
       setTimeout(() => {
         gBrowser.tabs.forEach((tab) => this.checkAndRestoreTab(tab));
+        this.cleanupEmptyGroups();
       }, 500);
 
       gBrowser.tabContainer.addEventListener("SSTabRestored", (e) => {
         this.checkAndRestoreTab(e.target);
+        this.cleanupEmptyGroups();
       });
     },
 
@@ -408,8 +424,103 @@
 
         if (tabsInGroup.length === 0) {
           header.remove();
+          const toggle = document.querySelector(
+            this.overflowToggleSelector(groupName, workspaceId),
+          );
+          if (toggle) toggle.remove();
+        } else {
+          this.updateGroupOverflow(header, tabsInGroup);
         }
       });
+    },
+
+    // Caps how many of a group's tabs are actually shown, hiding the rest
+    // behind a "Show N more" toggle instead of a nested scrollbox (see
+    // MAX_VISIBLE_TABS). Re-run any time group membership could have
+    // changed, so it always reflects the live tab list.
+    updateGroupOverflow(header, tabsInGroup) {
+      const groupName = header.getAttribute("group-name");
+      const workspaceId = header.getAttribute("zen-workspace-id");
+      const expanded = header.getAttribute("zen-overflow-expanded") === "true";
+      const overflowCount = tabsInGroup.length - this.MAX_VISIBLE_TABS;
+      const shouldCap = !expanded && overflowCount > 0;
+
+      tabsInGroup.forEach((tab, i) => {
+        if (shouldCap && i >= this.MAX_VISIBLE_TABS) {
+          tab.setAttribute("zen-overflow-hidden", "true");
+        } else {
+          tab.removeAttribute("zen-overflow-hidden");
+        }
+      });
+
+      this.ensureOverflowToggle(
+        header,
+        tabsInGroup,
+        overflowCount,
+        expanded,
+        groupName,
+        workspaceId,
+      );
+    },
+
+    ensureOverflowToggle(
+      header,
+      tabsInGroup,
+      overflowCount,
+      expanded,
+      groupName,
+      workspaceId,
+    ) {
+      let toggle = document.querySelector(
+        this.overflowToggleSelector(groupName, workspaceId),
+      );
+
+      if (overflowCount <= 0) {
+        if (toggle) toggle.remove();
+        return;
+      }
+
+      if (!toggle) {
+        toggle = document.createXULElement("hbox");
+        toggle.className = "zen-group-overflow-toggle";
+        toggle.setAttribute("group-name", groupName);
+        if (workspaceId) toggle.setAttribute("zen-workspace-id", workspaceId);
+
+        const label = document.createXULElement("label");
+        label.className = "zen-group-overflow-label";
+        toggle.appendChild(label);
+
+        toggle.addEventListener("click", () => {
+          const isExpanded =
+            header.getAttribute("zen-overflow-expanded") === "true";
+          header.setAttribute(
+            "zen-overflow-expanded",
+            isExpanded ? "false" : "true",
+          );
+          const currentTabs = Array.from(
+            gBrowser.tabContainer.querySelectorAll(
+              this.groupTabSelector(groupName, workspaceId),
+            ),
+          );
+          this.updateGroupOverflow(header, currentTabs);
+        });
+      }
+
+      const isHeaderCollapsed =
+        header.getAttribute("zen-collapsed") === "true";
+      toggle.setAttribute("zen-collapsed", isHeaderCollapsed ? "true" : "false");
+      toggle.setAttribute("zen-color", header.getAttribute("zen-color") || "grey");
+
+      const label = toggle.querySelector(".zen-group-overflow-label");
+      label.setAttribute(
+        "value",
+        expanded ? "Show less" : `Show ${overflowCount} more`,
+      );
+
+      const lastVisibleTab = expanded
+        ? tabsInGroup[tabsInGroup.length - 1]
+        : tabsInGroup[this.MAX_VISIBLE_TABS - 1];
+      if (lastVisibleTab) lastVisibleTab.after(toggle);
     },
 
     buildHeaderMenu() {
@@ -456,6 +567,7 @@
             tabs.forEach((tab) =>
               this.addTabToGroup(tab, groupName, colorLower),
             );
+            this.cleanupEmptyGroups();
           }
         });
         popup.appendChild(item);
@@ -498,6 +610,15 @@
                 SessionStore.setCustomTabValue(tab, "zen-group", newGroupName);
               }
             });
+
+            // The overflow toggle (if any) still carries the old name as an
+            // attribute and its click handler closes over it - drop it so
+            // cleanupEmptyGroups rebuilds a correctly-named one.
+            const oldToggle = document.querySelector(
+              this.overflowToggleSelector(oldGroupName, workspaceId),
+            );
+            if (oldToggle) oldToggle.remove();
+            this.cleanupEmptyGroups();
           }
         }
       });
@@ -593,7 +714,8 @@
         if (e.button === 2) return;
 
         const isCollapsed = header.getAttribute("zen-collapsed") === "true";
-        header.setAttribute("zen-collapsed", !isCollapsed);
+        const nowCollapsed = !isCollapsed;
+        header.setAttribute("zen-collapsed", nowCollapsed);
 
         const currentName = header.getAttribute("group-name");
         const currentWorkspaceId = header.getAttribute("zen-workspace-id");
@@ -607,6 +729,13 @@
             tab.removeAttribute("zen-hidden");
           }
         });
+
+        const toggle = document.querySelector(
+          this.overflowToggleSelector(currentName, currentWorkspaceId),
+        );
+        if (toggle) {
+          toggle.setAttribute("zen-collapsed", nowCollapsed ? "true" : "false");
+        }
       });
 
       gBrowser.tabContainer.insertBefore(header, referenceTab);
