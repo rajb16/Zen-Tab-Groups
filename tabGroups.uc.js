@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name           Zen Tab Groups
-// @version        1.16.1
+// @version        1.16.2
 // @description    Adds a "Show N more" cap for large groups; fixes color menu and grouping-into-existing-group bugs.
 // @author         Rajb16
 // @include        main
