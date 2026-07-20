@@ -14,9 +14,9 @@
   "preferences": "preferences.json",
   "readme": "https://raw.githubusercontent.com/rajb16/Zen-Tab-Groups/main/README.md",
   "author": "Rajb16",
-  "version": "1.28.0",
+  "version": "1.29.0",
   "tags": ["Zen Browser", "Vertical Tabs", "Tab Groups", "Tab Folders"],
   "createdAt": "2026-03-05",
-  "updatedAt": "2026-07-20T23:23:59Z",
+  "updatedAt": "2026-07-20T23:33:51Z",
   "fork": ["zen"]
 }
