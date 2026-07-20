@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name           Zen Tab Groups
-// @version        1.29.0
-// @description    Group card border is now a dedicated absolutely-positioned element (updateGroupOutline) instead of per-tab borders, so it no longer fights Zen's native per-tab decorations.
+// @version        1.20.0
+// @description    Replaces numeric-index tab positioning with direct DOM sibling insertion to eliminate stale-index bugs.
 // @author         Rajb16
 // @include        main
 // @onlyonce
@@ -61,81 +61,6 @@
       return workspaceId
         ? `${nameSel}[zen-workspace-id="${CSS.escape(workspaceId)}"]`
         : nameSel;
-    },
-
-    outlineSelector(groupName, workspaceId) {
-      const nameSel = `.zen-custom-group-outline[group-name="${CSS.escape(groupName)}"]`;
-      return workspaceId
-        ? `${nameSel}[zen-workspace-id="${CSS.escape(workspaceId)}"]`
-        : nameSel;
-    },
-
-    // The group "card" border is drawn by one dedicated, non-tab element
-    // per group (position:absolute, sized here) rather than borders on
-    // every individual tab - see the architecture note at the top of
-    // chrome.css for why. Appended at the end of tabContainer (not
-    // interleaved with the group's own tabs) so it never becomes a
-    // "sibling" that getValidSibling/reconcileGroupOrder have to reason
-    // about; those only ever match tag "tab" or the header's class,
-    // both of which this element deliberately has neither of.
-    updateGroupOutline(groupName, workspaceId) {
-      const header = document.querySelector(
-        this.groupHeaderSelector(groupName, workspaceId),
-      );
-      if (!header) return;
-
-      let outline = document.querySelector(
-        this.outlineSelector(groupName, workspaceId),
-      );
-      if (!outline) {
-        outline = document.createXULElement("box");
-        outline.className = "zen-custom-group-outline";
-        outline.setAttribute("group-name", groupName);
-        if (workspaceId) outline.setAttribute("zen-workspace-id", workspaceId);
-        gBrowser.tabContainer.appendChild(outline);
-      }
-      outline.setAttribute(
-        "zen-color",
-        header.getAttribute("zen-color") || "grey",
-      );
-
-      const isCollapsed = header.getAttribute("zen-collapsed") === "true";
-      let lastVisible = header;
-
-      if (!isCollapsed) {
-        const toggle = document.querySelector(
-          this.overflowToggleSelector(groupName, workspaceId),
-        );
-        if (toggle && toggle.getAttribute("zen-collapsed") !== "true") {
-          lastVisible = toggle;
-        } else {
-          const visibleTabs = Array.from(
-            gBrowser.tabContainer.querySelectorAll(
-              this.groupTabSelector(groupName, workspaceId),
-            ),
-          ).filter(
-            (tab) =>
-              !tab.closing &&
-              tab.getAttribute("zen-hidden") !== "true" &&
-              tab.getAttribute("zen-overflow-hidden") !== "true",
-          );
-          if (visibleTabs.length > 0) {
-            lastVisible = visibleTabs[visibleTabs.length - 1];
-          }
-        }
-      }
-
-      const top = header.offsetTop;
-      const bottom = lastVisible.offsetTop + lastVisible.offsetHeight;
-      outline.style.top = `${top}px`;
-      outline.style.height = `${Math.max(bottom - top, header.offsetHeight)}px`;
-    },
-
-    removeGroupOutline(groupName, workspaceId) {
-      const outline = document.querySelector(
-        this.outlineSelector(groupName, workspaceId),
-      );
-      if (outline) outline.remove();
     },
 
     getValidSibling(el, direction, workspaceId) {
@@ -573,7 +498,6 @@
                 this.overflowToggleSelector(groupName, workspaceId),
               );
               if (toggle) toggle.remove();
-              this.removeGroupOutline(groupName, workspaceId);
             } else {
               this.updateGroupOverflow(header, tabsInGroup);
             }
@@ -617,8 +541,6 @@
         groupName,
         workspaceId,
       );
-
-      this.updateGroupOutline(groupName, workspaceId);
     },
 
     ensureOverflowToggle(
@@ -894,8 +816,6 @@
         if (toggle) {
           toggle.setAttribute("zen-collapsed", nowCollapsed ? "true" : "false");
         }
-
-        this.updateGroupOutline(currentName, currentWorkspaceId);
       });
 
       gBrowser.tabContainer.insertBefore(header, referenceTab);

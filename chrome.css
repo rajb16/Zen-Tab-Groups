@@ -5,73 +5,37 @@
    instead of rounded corners, monospace/uppercase header labels.
    Each group keeps its own chosen color (now a neon variant) as its
    identity - that doesn't change, only how it's rendered does.
-
-   ARCHITECTURE CHANGE: the group "card" border used to be faked by
-   putting border-left/border-right on every individual tab plus a
-   border-bottom on whichever one happened to be last visible. That
-   fought Zen's own native per-tab decorations forever (Zen ships a
-   native .tab-group-line AND .tab-context-line inside every tab's
-   background, rendering their own line independently of anything set
-   here) - real element, whack-a-mole, never fully resolved. Tabs
-   can't be wrapped in a real DOM container either: they must stay
-   flat children of gBrowser.tabContainer for Firefox's native tab-
-   switch/drag/keyboard-nav bookkeeping to work (see the JS file).
-
-   So the border is now owned by ONE dedicated, non-tab element per
-   group - .zen-custom-group-outline - absolutely positioned and
-   sized by JS (updateGroupOutline in tabGroups.uc.js) to span from
-   the header down to whichever tab/toggle is currently last visible.
-   It draws the entire card's outline; tabs themselves have no border
-   at all anymore, so there's nothing left for Zen's native tab
-   decorations to visually conflict with.
    ============================================================ */
 
-/* Color Palette Variables - neon variants of the original 8.
-   .zen-custom-group-outline is included so the dedicated border
-   element gets the same --group-color as the header/tabs/toggle. */
-.zen-custom-group-header[zen-color="blue"], tab.tabbrowser-tab[zen-color="blue"], .zen-group-overflow-toggle[zen-color="blue"], .zen-custom-group-outline[zen-color="blue"] { --group-color: #00fff2; }
-.zen-custom-group-header[zen-color="red"], tab.tabbrowser-tab[zen-color="red"], .zen-group-overflow-toggle[zen-color="red"], .zen-custom-group-outline[zen-color="red"] { --group-color: #ff003c; }
-.zen-custom-group-header[zen-color="green"], tab.tabbrowser-tab[zen-color="green"], .zen-group-overflow-toggle[zen-color="green"], .zen-custom-group-outline[zen-color="green"] { --group-color: #39ff14; }
-.zen-custom-group-header[zen-color="yellow"], tab.tabbrowser-tab[zen-color="yellow"], .zen-group-overflow-toggle[zen-color="yellow"], .zen-custom-group-outline[zen-color="yellow"] { --group-color: #fcee0a; }
-.zen-custom-group-header[zen-color="purple"], tab.tabbrowser-tab[zen-color="purple"], .zen-group-overflow-toggle[zen-color="purple"], .zen-custom-group-outline[zen-color="purple"] { --group-color: #bc13fe; }
-.zen-custom-group-header[zen-color="pink"], tab.tabbrowser-tab[zen-color="pink"], .zen-group-overflow-toggle[zen-color="pink"], .zen-custom-group-outline[zen-color="pink"] { --group-color: #ff2ec4; }
-.zen-custom-group-header[zen-color="orange"], tab.tabbrowser-tab[zen-color="orange"], .zen-group-overflow-toggle[zen-color="orange"], .zen-custom-group-outline[zen-color="orange"] { --group-color: #ff8c00; }
-.zen-custom-group-header[zen-color="grey"], tab.tabbrowser-tab[zen-color="grey"], .zen-group-overflow-toggle[zen-color="grey"], .zen-custom-group-outline[zen-color="grey"] { --group-color: #b0b8bf; }
+/* Color Palette Variables - neon variants of the original 8 */
+.zen-custom-group-header[zen-color="blue"], tab.tabbrowser-tab[zen-color="blue"], .zen-group-overflow-toggle[zen-color="blue"] { --group-color: #00fff2; }
+.zen-custom-group-header[zen-color="red"], tab.tabbrowser-tab[zen-color="red"], .zen-group-overflow-toggle[zen-color="red"] { --group-color: #ff003c; }
+.zen-custom-group-header[zen-color="green"], tab.tabbrowser-tab[zen-color="green"], .zen-group-overflow-toggle[zen-color="green"] { --group-color: #39ff14; }
+.zen-custom-group-header[zen-color="yellow"], tab.tabbrowser-tab[zen-color="yellow"], .zen-group-overflow-toggle[zen-color="yellow"] { --group-color: #fcee0a; }
+.zen-custom-group-header[zen-color="purple"], tab.tabbrowser-tab[zen-color="purple"], .zen-group-overflow-toggle[zen-color="purple"] { --group-color: #bc13fe; }
+.zen-custom-group-header[zen-color="pink"], tab.tabbrowser-tab[zen-color="pink"], .zen-group-overflow-toggle[zen-color="pink"] { --group-color: #ff2ec4; }
+.zen-custom-group-header[zen-color="orange"], tab.tabbrowser-tab[zen-color="orange"], .zen-group-overflow-toggle[zen-color="orange"] { --group-color: #ff8c00; }
+.zen-custom-group-header[zen-color="grey"], tab.tabbrowser-tab[zen-color="grey"], .zen-group-overflow-toggle[zen-color="grey"] { --group-color: #b0b8bf; }
 
 :root {
   --cp-black: #0a0a0f;
+  /* Single-corner diagonal cuts (header cuts its top-left, whatever
+     closes the card cuts its bottom-right) so the whole card reads as
+     one angular terminal panel, echoing Url-Sidebar's cut-corner
+     language rather than every piece cutting all four corners. */
   --cp-cut: 10px;
 }
 
-/* The scrolling tab list needs to be the positioning root for the
-   outline elements (position:absolute children resolve against the
-   nearest positioned ancestor) - otherwise the outline's coordinates
-   and the tabs' own offsetTop/offsetHeight (used to size it, see JS)
-   would be measured against different reference frames and drift out
-   of alignment. Scoped to this specific inner element rather than the
-   whole #navigator-toolbox, which forcing position:relative on has
-   broken the compact-mode hover overlay before. */
-#tabbrowser-tabs {
-  position: relative !important;
-}
-
-/* The dedicated group-outline element - the ONE thing that draws the
-   card's border now. Sized/positioned entirely by JS (top/height
-   inline styles); everything else here is static styling. */
-.zen-custom-group-outline {
-  position: absolute !important;
-  left: 8px !important;
-  right: 8px !important;
-  border: 2px solid var(--group-color, #b0b8bf) !important;
-  background: transparent !important;
-  clip-path: polygon(
-    var(--cp-cut) 0, 100% 0, 100% calc(100% - var(--cp-cut)),
-    calc(100% - var(--cp-cut)) 100%, 0 100%, 0 var(--cp-cut)
-  ) !important;
-  box-shadow: 0 0 6px color-mix(in srgb, var(--group-color, #b0b8bf) 40%, transparent) !important;
-  pointer-events: none !important;
-  z-index: 2 !important;
-}
+/*
+ * Each group reads as one continuous card: header on top (top-left
+ * corner cut), its tabs sharing a solid black background + connecting
+ * side borders (no cut, no radius break), and whichever element is
+ * actually last *in view* - a tab, the overflow toggle, or the header
+ * itself if collapsed/empty - closes the card with its bottom-right
+ * corner cut. ":has()" is used to detect the true visual boundary
+ * rather than assuming DOM structure, since collapsed/capped tabs are
+ * still DOM siblings, just hidden.
+ */
 
 .zen-custom-group-header {
   display: flex !important;
@@ -79,18 +43,31 @@
   padding: 6px 12px !important;
   margin: 6px 8px 0 8px !important;
   background-color: var(--cp-black) !important;
+  border: 2px solid var(--group-color, #b0b8bf) !important;
+  border-bottom: none !important;
   outline: none !important;
   clip-path: polygon(var(--cp-cut) 0, 100% 0, 100% 100%, 0 100%, 0 var(--cp-cut)) !important;
   box-shadow: 0 0 8px color-mix(in srgb, var(--group-color, #b0b8bf) 55%, transparent) !important;
   cursor: pointer !important;
   user-select: none !important;
   transition: box-shadow 0.2s ease !important;
-  position: relative !important;
-  z-index: 1 !important;
 }
 
 .zen-custom-group-header:hover {
   box-shadow: 0 0 14px color-mix(in srgb, var(--group-color, #b0b8bf) 80%, transparent) !important;
+}
+
+/* Nothing visibly follows the header (collapsed, or no visible overflow
+   toggle either) - cut both corners so it stands alone as a card. */
+.zen-custom-group-header:not(
+    :has(+ tab[zen-group]:not([zen-hidden="true"]):not([zen-overflow-hidden="true"]))
+  ):not(:has(+ .zen-group-overflow-toggle:not([zen-collapsed="true"]))) {
+  border: 2px solid var(--group-color, #b0b8bf) !important;
+  clip-path: polygon(
+    var(--cp-cut) 0, 100% 0, 100% calc(100% - var(--cp-cut)),
+    calc(100% - var(--cp-cut)) 100%, 0 100%, 0 var(--cp-cut)
+  ) !important;
+  margin-bottom: 6px !important;
 }
 
 /* The New SVG Masked Folder Icon */
@@ -121,28 +98,75 @@
   opacity: 0.6 !important;
 }
 
-/* Tabs: solid black fill only, flush with the header's margins so
-   they line up with the outline element sitting at the same 8px
-   inset. No border here at all anymore - see the architecture note
-   at the top of this file for why. */
+/* Tabs share the card's side borders and a solid black background,
+   flush with the header's margins (no indent - reads as one box).
+   Symmetric padding - a left-only padding here previously pushed the
+   icon/label off-center (more gap on the left than the right).
+
+   Left and right borders are deliberately identical (same width, same
+   full-strength color, no color-mix/dimming, no sleep-state variant)
+   so the whole group reads as one solid-color outline regardless of
+   which side you're looking at or whether the tab is asleep - a
+   previous version mixed the right border down to 40% and dimmed
+   asleep tabs further still, which made the outline look inconsistent
+   and, on asleep tabs, closer to grey than the group's actual color. */
 tab.tabbrowser-tab[zen-group] {
   margin: 0 8px !important;
   padding: 0 8px !important;
   background-color: var(--cp-black) !important;
+  border-left: 2px solid var(--group-color, #b0b8bf) !important;
+  border-right: 2px solid var(--group-color, #b0b8bf) !important;
   outline: none !important;
   box-shadow: none !important;
-  position: relative !important;
-  z-index: 1 !important;
 }
 
-/* Zen's own native per-tab group indicators - independent of anything
-   in this file, found via the Browser Toolbox inspector. Hidden since
-   this mod draws its own group border now (see .zen-custom-group-outline
-   above); leaving these visible would just be a second, uncontrolled
-   line rendering on top of/behind ours. */
+/* The outline/box-shadow reset above wasn't enough - a pale sliver
+   still showed on the right edge only, identically on differently
+   colored groups, even after a full restart. That means it isn't a
+   property on the <tab> element itself being overridden by ours at
+   all, it's something on a nested element (.tab-stack) or a
+   pseudo-element Zen's base theme attaches, painted independently on
+   top. Sweep all of those too rather than guessing which one it is. */
+tab.tabbrowser-tab[zen-group] .tab-stack,
+tab.tabbrowser-tab[zen-group] .tab-content {
+  outline: none !important;
+  box-shadow: none !important;
+  border: none !important;
+}
+
+tab.tabbrowser-tab[zen-group]::after,
+tab.tabbrowser-tab[zen-group]::before,
+tab.tabbrowser-tab[zen-group] .tab-stack::after,
+tab.tabbrowser-tab[zen-group] .tab-stack::before {
+  border: none !important;
+  box-shadow: none !important;
+  background: none !important;
+}
+
+/* Found via the actual DOM (Browser Toolbox inspector), not a guess:
+   Zen's OWN base stylesheet (vertical-tabs.css) already has a native
+   tab-grouping visual, `.tab-group-line`, living inside `.tab-background`
+   right alongside `.tab-context-line` and `.tab-loading-burst` - and it
+   reads the SAME zen-group/zen-color attributes our custom header/border
+   system uses. Two independent group-color systems were rendering on
+   top of each other the whole time, which is what the persistent
+   white/pale sliver actually was - never our border-right at all. Kill
+   the native one so only our own card border shows. */
 tab.tabbrowser-tab[zen-group] .tab-group-line,
 tab.tabbrowser-tab[zen-group] .tab-context-line {
   display: none !important;
+}
+
+/* Last *visible* tab in the group (no visible next tab, no visible
+   overflow toggle after it) closes the card - bottom-right corner cut.
+   Bottom border matches the sides: full-strength group color, no
+   dimming for sleep state. */
+tab.tabbrowser-tab[zen-group]:not(
+    :has(+ tab[zen-group]:not([zen-hidden="true"]):not([zen-overflow-hidden="true"]))
+  ):not(:has(+ .zen-group-overflow-toggle:not([zen-collapsed="true"]))) {
+  clip-path: polygon(0 0, 100% 0, 100% calc(100% - var(--cp-cut)), calc(100% - var(--cp-cut)) 100%, 0 100%) !important;
+  border-bottom: 2px solid var(--group-color, #b0b8bf) !important;
+  margin-bottom: 6px !important;
 }
 
 /* Hide tabs when collapsed */
@@ -155,7 +179,8 @@ tab.tabbrowser-tab[zen-overflow-hidden="true"] {
   display: none !important;
 }
 
-/* "Show N more / Show less" toggle for capped groups. */
+/* "Show N more / Show less" toggle for capped groups - always the last
+   visible element when shown, so it always closes the card. */
 .zen-group-overflow-toggle {
   display: flex !important;
   align-items: center !important;
@@ -163,7 +188,11 @@ tab.tabbrowser-tab[zen-overflow-hidden="true"] {
   margin: 0 8px 6px 8px !important;
   padding: 4px 8px !important;
   background-color: var(--cp-black) !important;
+  border-left: 2px solid var(--group-color, #b0b8bf) !important;
+  border-right: 2px solid var(--group-color, #b0b8bf) !important;
+  border-bottom: 2px solid var(--group-color, #b0b8bf) !important;
   outline: none !important;
+  clip-path: polygon(0 0, 100% 0, 100% calc(100% - var(--cp-cut)), calc(100% - var(--cp-cut)) 100%, 0 100%) !important;
   cursor: pointer !important;
   user-select: none !important;
   font-family: "Consolas", "Courier New", monospace !important;
@@ -172,8 +201,6 @@ tab.tabbrowser-tab[zen-overflow-hidden="true"] {
   opacity: 0.85 !important;
   color: var(--group-color, inherit) !important;
   transition: opacity 0.15s ease, box-shadow 0.15s ease !important;
-  position: relative !important;
-  z-index: 1 !important;
 }
 
 .zen-group-overflow-toggle:hover {
