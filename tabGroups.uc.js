@@ -256,6 +256,21 @@
       return "grey";
     },
 
+    // Moves `tab` to sit immediately after the current last tab of the given
+    // group (live-requeried from the DOM), or leaves it where it is if the
+    // group has no other tabs yet. Shared by manual grouping and AI sorting
+    // so both always land tabs next to their actual group.
+    insertTabAtGroupEnd(tab, groupName, workspaceId) {
+      const currentGroupTabs = gBrowser.tabContainer.querySelectorAll(
+        this.groupTabSelector(groupName, workspaceId),
+      );
+      const insertIndex =
+        currentGroupTabs.length > 0
+          ? currentGroupTabs[currentGroupTabs.length - 1]._tPos + 1
+          : tab._tPos;
+      gBrowser.moveTabTo(tab, insertIndex);
+    },
+
     addTabToGroup(tab, groupName, color) {
       tab.setAttribute("zen-group", groupName);
       tab.setAttribute("zen-color", color);
@@ -636,19 +651,37 @@
           console.error("[ZenTabGroups] Error extracting domain name:", e);
         }
 
-        const autoColor = this.detectTabColor(tabsToGroup[0]);
+        const workspaceId = tabsToGroup[0].getAttribute("zen-workspace-id");
+        const existingHeader = document.querySelector(
+          this.groupHeaderSelector(groupName, workspaceId),
+        );
+        const autoColor = existingHeader
+          ? existingHeader.getAttribute("zen-color") || "grey"
+          : this.detectTabColor(tabsToGroup[0]);
+
         this.isMovingMultiple = true;
 
-        let insertIndex = tabsToGroup[0]._tPos;
+        if (existingHeader) {
+          // Group already exists elsewhere - place every tab next to it
+          // instead of leaving them wherever they currently sit.
+          tabsToGroup.forEach((tab) => {
+            this.removeTabFromGroup(tab);
+            this.insertTabAtGroupEnd(tab, groupName, workspaceId);
+            this.addTabToGroup(tab, groupName, autoColor);
+          });
+        } else {
+          const [firstTab, ...restTabs] = tabsToGroup;
+          this.removeTabFromGroup(firstTab);
+          this.addTabToGroup(firstTab, groupName, autoColor);
+          this.createGroupHeader(groupName, firstTab, autoColor);
 
-        tabsToGroup.forEach((tab) => {
-          this.removeTabFromGroup(tab);
-          gBrowser.moveTabTo(tab, insertIndex);
-          this.addTabToGroup(tab, groupName, autoColor);
-          insertIndex++;
-        });
+          restTabs.forEach((tab) => {
+            this.removeTabFromGroup(tab);
+            this.insertTabAtGroupEnd(tab, groupName, workspaceId);
+            this.addTabToGroup(tab, groupName, autoColor);
+          });
+        }
 
-        this.createGroupHeader(groupName, tabsToGroup[0], autoColor);
         this.cleanupEmptyGroups();
 
         setTimeout(() => {
