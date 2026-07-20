@@ -143,6 +143,19 @@ tab.tabbrowser-tab[zen-group] .tab-stack::before {
   background: none !important;
 }
 
+/* Found via the actual DOM (Browser Toolbox inspector), not a guess:
+   Zen's OWN base stylesheet (vertical-tabs.css) already has a native
+   tab-grouping visual, `.tab-group-line`, living inside `.tab-background`
+   right alongside `.tab-context-line` and `.tab-loading-burst` - and it
+   reads the SAME zen-group/zen-color attributes our custom header/border
+   system uses. Two independent group-color systems were rendering on
+   top of each other the whole time, which is what the persistent
+   white/pale sliver actually was - never our border-right at all. Kill
+   the native one so only our own card border shows. */
+tab.tabbrowser-tab[zen-group] .tab-group-line {
+  display: none !important;
+}
+
 /* Last *visible* tab in the group (no visible next tab, no visible
    overflow toggle after it) closes the card - bottom-right corner cut.
    Bottom border matches the sides: full-strength group color, no
