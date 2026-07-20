@@ -8,10 +8,11 @@
     "label": "Max Tabs Shown Per Group",
     "type": "dropdown",
     "value": "number",
-    "default": 20,
+    "default": 12,
     "options": [
       { "value": 10, "label": "10 tabs" },
-      { "value": 20, "label": "20 tabs (Default)" },
+      { "value": 12, "label": "12 tabs (Default)" },
+      { "value": 20, "label": "20 tabs" },
       { "value": 30, "label": "30 tabs" },
       { "value": 50, "label": "50 tabs" }
     ]

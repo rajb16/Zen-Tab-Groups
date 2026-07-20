@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name           Zen Tab Groups
-// @version        1.18.0
-// @description    Adds a real preference for the group tab cap; fixes LICENSE attribution.
+// @version        1.19.0
+// @description    Isolates per-group cleanup errors, caps groups at 12 tabs by default, and gives each group a card-style visual container.
 // @author         Rajb16
 // @include        main
 // @onlyonce
@@ -36,7 +36,7 @@
     // drag/keyboard-nav bookkeeping to keep working. Read live (not cached)
     // so the preference takes effect without a restart.
     get MAX_VISIBLE_TABS() {
-      return getPref(PREFS.MAX_VISIBLE_TABS, "int", 20);
+      return getPref(PREFS.MAX_VISIBLE_TABS, "int", 12);
     },
 
     // Groups are only unique within a workspace - two different workspaces can
@@ -297,11 +297,17 @@
       const currentGroupTabs = gBrowser.tabContainer.querySelectorAll(
         this.groupTabSelector(groupName, workspaceId),
       );
+      const lastTab = currentGroupTabs[currentGroupTabs.length - 1];
       const insertIndex =
-        currentGroupTabs.length > 0
-          ? currentGroupTabs[currentGroupTabs.length - 1]._tPos + 1
+        lastTab && typeof lastTab._tPos === "number"
+          ? lastTab._tPos + 1
           : tab._tPos;
-      gBrowser.moveTabTo(tab, insertIndex);
+      // _tPos can be transiently unassigned (e.g. mid session-restore with
+      // many tabs) - skip rather than call moveTabTo with a bad index, which
+      // would throw and abort whatever loop is calling this for OTHER groups.
+      if (typeof insertIndex === "number" && !Number.isNaN(insertIndex)) {
+        gBrowser.moveTabTo(tab, insertIndex);
+      }
     },
 
     // Self-heal a group whose tabs aren't all physically contiguous - e.g.
@@ -463,25 +469,36 @@
       try {
         const headers = document.querySelectorAll(".zen-custom-group-header");
         headers.forEach((header) => {
-          const groupName = header.getAttribute("group-name");
-          const workspaceId = header.getAttribute("zen-workspace-id");
+          // Isolated per-group: one group throwing (e.g. a transient _tPos
+          // issue mid session-restore) must not abort reconciliation for
+          // every other group processed after it in this same pass.
+          try {
+            const groupName = header.getAttribute("group-name");
+            const workspaceId = header.getAttribute("zen-workspace-id");
 
-          this.reconcileGroupOrder(groupName, workspaceId);
+            this.reconcileGroupOrder(groupName, workspaceId);
 
-          const tabsInGroup = Array.from(
-            gBrowser.tabContainer.querySelectorAll(
-              this.groupTabSelector(groupName, workspaceId),
-            ),
-          ).filter((tab) => !tab.closing);
+            const tabsInGroup = Array.from(
+              gBrowser.tabContainer.querySelectorAll(
+                this.groupTabSelector(groupName, workspaceId),
+              ),
+            ).filter((tab) => !tab.closing);
 
-          if (tabsInGroup.length === 0) {
-            header.remove();
-            const toggle = document.querySelector(
-              this.overflowToggleSelector(groupName, workspaceId),
+            if (tabsInGroup.length === 0) {
+              header.remove();
+              const toggle = document.querySelector(
+                this.overflowToggleSelector(groupName, workspaceId),
+              );
+              if (toggle) toggle.remove();
+            } else {
+              this.updateGroupOverflow(header, tabsInGroup);
+            }
+          } catch (e) {
+            console.error(
+              "[ZenTabGroups] Error cleaning up group:",
+              header.getAttribute("group-name"),
+              e,
             );
-            if (toggle) toggle.remove();
-          } else {
-            this.updateGroupOverflow(header, tabsInGroup);
           }
         });
       } finally {
