@@ -45,6 +45,7 @@
   background-color: var(--cp-black) !important;
   border: 2px solid var(--group-color, #b0b8bf) !important;
   border-bottom: none !important;
+  outline: none !important;
   clip-path: polygon(var(--cp-cut) 0, 100% 0, 100% 100%, 0 100%, 0 var(--cp-cut)) !important;
   box-shadow: 0 0 8px color-mix(in srgb, var(--group-color, #b0b8bf) 55%, transparent) !important;
   cursor: pointer !important;
@@ -115,6 +116,14 @@ tab.tabbrowser-tab[zen-group] {
   background-color: var(--cp-black) !important;
   border-left: 2px solid var(--group-color, #b0b8bf) !important;
   border-right: 2px solid var(--group-color, #b0b8bf) !important;
+  /* Zen's base theme puts a subtle native highlight/outline on tabs
+     (part of its own default tab "card" bevel) that isn't part of the
+     border we set above - it was showing through as a pale white
+     sliver on top of our border-right specifically (confirmed live:
+     visible identically on both a cyan and a pink group, so it wasn't
+     coming from --group-color at all). Explicitly clear it here. */
+  outline: none !important;
+  box-shadow: none !important;
 }
 
 /* Last *visible* tab in the group (no visible next tab, no visible
@@ -151,6 +160,7 @@ tab.tabbrowser-tab[zen-overflow-hidden="true"] {
   border-left: 2px solid var(--group-color, #b0b8bf) !important;
   border-right: 2px solid var(--group-color, #b0b8bf) !important;
   border-bottom: 2px solid var(--group-color, #b0b8bf) !important;
+  outline: none !important;
   clip-path: polygon(0 0, 100% 0, 100% calc(100% - var(--cp-cut)), calc(100% - var(--cp-cut)) 100%, 0 100%) !important;
   cursor: pointer !important;
   user-select: none !important;
