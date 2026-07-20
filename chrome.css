@@ -152,7 +152,8 @@ tab.tabbrowser-tab[zen-group] .tab-stack::before {
    top of each other the whole time, which is what the persistent
    white/pale sliver actually was - never our border-right at all. Kill
    the native one so only our own card border shows. */
-tab.tabbrowser-tab[zen-group] .tab-group-line {
+tab.tabbrowser-tab[zen-group] .tab-group-line,
+tab.tabbrowser-tab[zen-group] .tab-context-line {
   display: none !important;
 }
 
