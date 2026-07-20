@@ -100,42 +100,33 @@
 /* Tabs share the card's side borders and a solid black background,
    flush with the header's margins (no indent - reads as one box).
    Symmetric padding - a left-only padding here previously pushed the
-   icon/label off-center (more gap on the left than the right). */
+   icon/label off-center (more gap on the left than the right).
+
+   Left and right borders are deliberately identical (same width, same
+   full-strength color, no color-mix/dimming, no sleep-state variant)
+   so the whole group reads as one solid-color outline regardless of
+   which side you're looking at or whether the tab is asleep - a
+   previous version mixed the right border down to 40% and dimmed
+   asleep tabs further still, which made the outline look inconsistent
+   and, on asleep tabs, closer to grey than the group's actual color. */
 tab.tabbrowser-tab[zen-group] {
   margin: 0 8px !important;
   padding: 0 8px !important;
   background-color: var(--cp-black) !important;
   border-left: 2px solid var(--group-color, #b0b8bf) !important;
-  border-right: 1px solid color-mix(in srgb, var(--group-color, #b0b8bf) 40%, transparent) !important;
-}
-
-/* Asleep tabs: dim the group-color side borders too - otherwise every
-   tab in a group kept a full-brightness neon left border regardless of
-   sleep state, which read as too bright/uneven next to the muted
-   background Url-Sidebar gives asleep tabs. */
-tab.tabbrowser-tab[zen-group][pending],
-tab.tabbrowser-tab[zen-group][discarded] {
-  border-left: 2px solid color-mix(in srgb, var(--group-color, #b0b8bf) 35%, transparent) !important;
-  border-right: 1px solid color-mix(in srgb, var(--group-color, #b0b8bf) 18%, transparent) !important;
+  border-right: 2px solid var(--group-color, #b0b8bf) !important;
 }
 
 /* Last *visible* tab in the group (no visible next tab, no visible
-   overflow toggle after it) closes the card - bottom-right corner cut. */
+   overflow toggle after it) closes the card - bottom-right corner cut.
+   Bottom border matches the sides: full-strength group color, no
+   dimming for sleep state. */
 tab.tabbrowser-tab[zen-group]:not(
     :has(+ tab[zen-group]:not([zen-hidden="true"]):not([zen-overflow-hidden="true"]))
   ):not(:has(+ .zen-group-overflow-toggle:not([zen-collapsed="true"]))) {
   clip-path: polygon(0 0, 100% 0, 100% calc(100% - var(--cp-cut)), calc(100% - var(--cp-cut)) 100%, 0 100%) !important;
-  border-bottom: 1px solid color-mix(in srgb, var(--group-color, #b0b8bf) 40%, transparent) !important;
+  border-bottom: 2px solid var(--group-color, #b0b8bf) !important;
   margin-bottom: 6px !important;
-}
-
-tab.tabbrowser-tab[zen-group][pending]:not(
-    :has(+ tab[zen-group]:not([zen-hidden="true"]):not([zen-overflow-hidden="true"]))
-  ):not(:has(+ .zen-group-overflow-toggle:not([zen-collapsed="true"]))),
-tab.tabbrowser-tab[zen-group][discarded]:not(
-    :has(+ tab[zen-group]:not([zen-hidden="true"]):not([zen-overflow-hidden="true"]))
-  ):not(:has(+ .zen-group-overflow-toggle:not([zen-collapsed="true"]))) {
-  border-bottom: 1px solid color-mix(in srgb, var(--group-color, #b0b8bf) 18%, transparent) !important;
 }
 
 /* Hide tabs when collapsed */
@@ -158,8 +149,8 @@ tab.tabbrowser-tab[zen-overflow-hidden="true"] {
   padding: 4px 8px !important;
   background-color: var(--cp-black) !important;
   border-left: 2px solid var(--group-color, #b0b8bf) !important;
-  border-right: 1px solid color-mix(in srgb, var(--group-color, #b0b8bf) 40%, transparent) !important;
-  border-bottom: 1px solid color-mix(in srgb, var(--group-color, #b0b8bf) 40%, transparent) !important;
+  border-right: 2px solid var(--group-color, #b0b8bf) !important;
+  border-bottom: 2px solid var(--group-color, #b0b8bf) !important;
   clip-path: polygon(0 0, 100% 0, 100% calc(100% - var(--cp-cut)), calc(100% - var(--cp-cut)) 100%, 0 100%) !important;
   cursor: pointer !important;
   user-select: none !important;
