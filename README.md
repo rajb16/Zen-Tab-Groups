@@ -11,6 +11,7 @@ Folder-style tab groups for Zen Browser's vertical tab strip. Group tabs togethe
 * **Group header menu** (right-click a header) — change color, rename, ungroup all tabs, or close the whole group.
 * **Persists across restarts** — group membership and color are saved via Firefox's SessionStore, so groups come back after closing/reopening the browser.
 * **Per-workspace groups** — groups are scoped to the Zen workspace they were created in, so two different workspaces can each have their own group with the same name without interfering with each other.
+* **Capped groups** — a group with more than 20 tabs shows a "Show N more" toggle instead of pushing everything else out of view.
 
 ## Requirements
 
