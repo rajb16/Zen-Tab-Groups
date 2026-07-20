@@ -98,13 +98,25 @@
 }
 
 /* Tabs share the card's side borders and a solid black background,
-   flush with the header's margins (no indent - reads as one box). */
+   flush with the header's margins (no indent - reads as one box).
+   Symmetric padding - a left-only padding here previously pushed the
+   icon/label off-center (more gap on the left than the right). */
 tab.tabbrowser-tab[zen-group] {
   margin: 0 8px !important;
-  padding-left: 8px !important;
+  padding: 0 8px !important;
   background-color: var(--cp-black) !important;
   border-left: 2px solid var(--group-color, #b0b8bf) !important;
   border-right: 1px solid color-mix(in srgb, var(--group-color, #b0b8bf) 40%, transparent) !important;
+}
+
+/* Asleep tabs: dim the group-color side borders too - otherwise every
+   tab in a group kept a full-brightness neon left border regardless of
+   sleep state, which read as too bright/uneven next to the muted
+   background Url-Sidebar gives asleep tabs. */
+tab.tabbrowser-tab[zen-group][pending],
+tab.tabbrowser-tab[zen-group][discarded] {
+  border-left: 2px solid color-mix(in srgb, var(--group-color, #b0b8bf) 35%, transparent) !important;
+  border-right: 1px solid color-mix(in srgb, var(--group-color, #b0b8bf) 18%, transparent) !important;
 }
 
 /* Last *visible* tab in the group (no visible next tab, no visible
@@ -115,6 +127,15 @@ tab.tabbrowser-tab[zen-group]:not(
   clip-path: polygon(0 0, 100% 0, 100% calc(100% - var(--cp-cut)), calc(100% - var(--cp-cut)) 100%, 0 100%) !important;
   border-bottom: 1px solid color-mix(in srgb, var(--group-color, #b0b8bf) 40%, transparent) !important;
   margin-bottom: 6px !important;
+}
+
+tab.tabbrowser-tab[zen-group][pending]:not(
+    :has(+ tab[zen-group]:not([zen-hidden="true"]):not([zen-overflow-hidden="true"]))
+  ):not(:has(+ .zen-group-overflow-toggle:not([zen-collapsed="true"]))),
+tab.tabbrowser-tab[zen-group][discarded]:not(
+    :has(+ tab[zen-group]:not([zen-hidden="true"]):not([zen-overflow-hidden="true"]))
+  ):not(:has(+ .zen-group-overflow-toggle:not([zen-collapsed="true"]))) {
+  border-bottom: 1px solid color-mix(in srgb, var(--group-color, #b0b8bf) 18%, transparent) !important;
 }
 
 /* Hide tabs when collapsed */
